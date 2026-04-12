@@ -14,9 +14,11 @@ from app.core.config import settings
 from app.models.domain import Base
 
 config = context.config
-asyncio.set_event_loop_policy(
-    asyncio.WindowsSelectorEventLoopPolicy()
-)
+
+# Only apply the Windows policy if the OS is actually Windows
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
