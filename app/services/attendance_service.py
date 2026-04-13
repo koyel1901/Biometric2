@@ -71,24 +71,33 @@ async def process_bulk_attendance(tenant_id: int, device_id: str, logs: list, db
     await db.commit()
     
     return result.rowcount
-
 async def get_attendance_history(tenant_id: int, db: AsyncSession):
     """Fetches the last 50 attendance records."""
-    stmt = select(AttendanceLog, User.name).outerjoin(
-        User, 
-        (AttendanceLog.tenant_id == User.tenant_id) & (AttendanceLog.finger_id == User.finger_id)
-    ).where(AttendanceLog.tenant_id == tenant_id).order_by(AttendanceLog.timestamp.desc()).limit(50)
+    stmt = (
+        select(AttendanceLog, User.name)
+        .outerjoin(
+            User, 
+            (AttendanceLog.tenant_id == User.tenant_id) & (AttendanceLog.finger_id == User.finger_id)
+        )
+        .where(AttendanceLog.tenant_id == tenant_id)
+        .order_by(AttendanceLog.timestamp.desc())
+        .limit(50)
+    )
     
     result = await db.execute(stmt)
-    rows = result.all()
     
-    return [
-        {
-            "timestamp": row[0].timestamp,          # Safely get the AttendanceLog object
-            "finger_id": row[0].finger_id,
-            "device_id": row[0].device_id,
-            "record_type": row[0].record_type,
-            "user_name": row[1] if row[1] else "Unknown"  # Safely get the User.name string
-        }
-        for row in rows
-    ]
+    # .mappings() safely turns the result into dictionary-like objects
+    response_data = []
+    for row in result.mappings():
+        log = row["AttendanceLog"]
+        user_name = row["name"]
+        
+        response_data.append({
+            "timestamp": log.timestamp,
+            "finger_id": log.finger_id,
+            "device_id": log.device_id,
+            "record_type": log.record_type,
+            "user_name": user_name if user_name else "Unknown"
+        })
+        
+    return response_data
