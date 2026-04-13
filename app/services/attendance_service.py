@@ -84,11 +84,11 @@ async def get_attendance_history(tenant_id: int, db: AsyncSession):
     
     return [
         {
-            "timestamp": row.AttendanceLog.timestamp,
-            "finger_id": row.AttendanceLog.finger_id,
-            "device_id": row.AttendanceLog.device_id,
-            "record_type": row.AttendanceLog.record_type,
-            "user_name": row.name or "Unknown"
+            "timestamp": row[0].timestamp,          # Safely get the AttendanceLog object
+            "finger_id": row[0].finger_id,
+            "device_id": row[0].device_id,
+            "record_type": row[0].record_type,
+            "user_name": row[1] if row[1] else "Unknown"  # Safely get the User.name string
         }
         for row in rows
     ]
