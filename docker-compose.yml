@@ -10,8 +10,7 @@ services:
     environment:
       # --- UPDATE WITH YOUR EXACT NEON DB URL ---
       # Example: postgresql+asyncpg://[user]:[password]@[endpoint].neon.tech/[dbname]?sslmode=require
-      - DATABASE_URL=postgresql+asyncpg://YOUR_NEON_USER:YOUR_NEON_PASSWORD@YOUR_NEON_ENDPOINT/gridsphere?sslmode=require
-      
+      - DATABASE_URL=${DATABASE_URL}      
       # --- UPDATE THESE TO MATCH YOUR EXISTING MQTT BROKER ---
       - MQTT_BROKER=mqtt.gridsphere.in 
       - MQTT_PORT=1883
