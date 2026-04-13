@@ -14,12 +14,14 @@ async def mark_attendance(
     device: dict = Depends(verify_device),
     db: AsyncSession = Depends(get_db)
 ):
-    log = await process_attendance(tenant_id, device.device_id, finger_id, db)
+    # Unpack the log and the fetched user_name
+    log, user_name = await process_attendance(tenant_id, device.device_id, finger_id, db)
     
-    # Send the state right back to the hardware
+    # Send the state and user name right back to the hardware
     return {
         "status": "success", 
-        "record_type": log.record_type, 
+        "record_type": log.record_type,
+        "user_name": user_name,
         "message": f"Successfully marked {log.record_type}"
     }
 

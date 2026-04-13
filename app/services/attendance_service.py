@@ -7,12 +7,18 @@ from app.models.domain import AttendanceLog, User
 import datetime
 
 async def process_attendance(tenant_id: int, device_id: str, finger_id: int, db: AsyncSession):
-    """Logs attendance directly to DB with automatic IN/OUT toggling."""
+    """Logs attendance directly to DB with automatic IN/OUT toggling and fetches User name."""
     
-    # Reset cycle every night at midnight
+    # 1. Lookup the User's Name
+    user_stmt = select(User).where(User.tenant_id == tenant_id, User.finger_id == finger_id)
+    user_result = await db.execute(user_stmt)
+    user = user_result.scalars().first()
+    user_name = user.name if user else "Unknown User"
+    
+    # 2. Reset cycle every night at midnight
     today = datetime.datetime.now(datetime.timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     
-    # 1. Fetch the user's most recent log for today
+    # 3. Fetch the user's most recent log for today
     stmt = select(AttendanceLog).where(
         AttendanceLog.tenant_id == tenant_id,
         AttendanceLog.finger_id == finger_id,
@@ -22,12 +28,12 @@ async def process_attendance(tenant_id: int, device_id: str, finger_id: int, db:
     result = await db.execute(stmt)
     last_log = result.scalars().first()
     
-    # 2. Toggle Logic (Default to IN if no previous record exists today)
+    # 4. Toggle Logic (Default to IN if no previous record exists today)
     current_type = "IN"
     if last_log and last_log.record_type == "IN":
         current_type = "OUT"
         
-    # 3. Save the new log
+    # 5. Save the new log
     log = AttendanceLog(
         tenant_id=tenant_id,
         device_id=device_id,
@@ -39,7 +45,8 @@ async def process_attendance(tenant_id: int, device_id: str, finger_id: int, db:
     await db.commit()
     await db.refresh(log)
     
-    return log
+    # Return both the log and the user_name
+    return log, user_name
 
 async def process_bulk_attendance(tenant_id: int, device_id: str, logs: list, db: AsyncSession):
     """Handles offline sync logs."""
