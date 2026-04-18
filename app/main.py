@@ -19,21 +19,24 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="GridSphere Multi-Tenant API", lifespan=lifespan)
 
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+import os
+
 # --- UI ROUTE (Placed at the top for priority) ---
-@app.get("/", response_class=HTMLResponse, tags=["UI"])
+# Mount the entire frontend directory to serve all the html/css files statically.
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+frontend_dir = os.path.join(base_dir, "frontend")
+
+if os.path.exists(frontend_dir):
+    app.mount("/ui", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+else:
+    logger.warning("Frontend directory not found.")
+
+@app.get("/", tags=["UI"])
 async def serve_dashboard():
-    # Looks for index.html in the biomet root folder
-    # This goes up one level from app/main.py
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    file_path = os.path.join(base_dir, "index.html")
-    
-    if os.path.exists(file_path):
-        return FileResponse(file_path)
-    
-    return HTMLResponse(
-        content=f"<h1>Dashboard File Not Found</h1><p>Looked in: {file_path}</p>", 
-        status_code=404
-    )
+    # Redirect root to the mounted UI
+    return RedirectResponse(url="/ui/")
 
 # --- REGISTER ROUTERS ---
 app.include_router(users.router, prefix="/api/users", tags=["Users"])

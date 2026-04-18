@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     PROJECT_NAME: str = "GridSphere IoT Core"
     DATABASE_URL: str
-    REDIS_URL: str
+    REDIS_URL: str | None = None
     
     MQTT_BROKER: str
     MQTT_PORT: int = 1883
