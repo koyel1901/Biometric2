@@ -1,7 +1,11 @@
+// src/App.jsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 import Gateway from './pages/Gateway';
+import Login from './pages/Login';
 
 // Tenant Imports
 import TenantDash from './pages/tenant/Dashboard';
@@ -29,52 +33,196 @@ import EmpAttendance from './pages/employee/Attendance';
 import EmpLeaves from './pages/employee/Leaves';
 import EmpHolidays from './pages/employee/Holidays';
 import EmpProfile from './pages/employee/Profile';
-import Login from './pages/Login';
-
-
 
 function App() {
   return (
     <ThemeProvider>
-      <Router>
-        <Routes>
-          {/* Landing / Gateway */}
-          <Route path="/" element={<Gateway />} />
-          <Route path="/login/:role" element={<Login />} />
+      <AuthProvider>
+        <Router>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/" element={<Gateway />} />
+            <Route path="/login/:role" element={<Login />} />
 
+            {/* Tenant Admin Routes - Super Admin */}
+            <Route 
+              path="/super/dashboard" 
+              element={
+                <ProtectedRoute allowedRoles={['tenant_admin', 'superadmin']}>
+                  <TenantDash />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/super/departments" 
+              element={
+                <ProtectedRoute allowedRoles={['tenant_admin', 'superadmin']}>
+                  <TenantDepts />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/super/holidays" 
+              element={
+                <ProtectedRoute allowedRoles={['tenant_admin', 'superadmin']}>
+                  <TenantHolidays />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/super/devices" 
+              element={
+                <ProtectedRoute allowedRoles={['tenant_admin', 'superadmin']}>
+                  <TenantDevices />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/super/activity" 
+              element={
+                <ProtectedRoute allowedRoles={['tenant_admin', 'superadmin']}>
+                  <TenantActivity />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/super/settings" 
+              element={
+                <ProtectedRoute allowedRoles={['tenant_admin', 'superadmin']}>
+                  <TenantSettings />
+                </ProtectedRoute>
+              } 
+            />
 
-          {/* Tenant Admin (Super Admin) Routes */}
-          <Route path="/super/dashboard" element={<TenantDash />} />
-          <Route path="/super/departments" element={<TenantDepts />} />
-          <Route path="/super/holidays" element={<TenantHolidays />} />
-          <Route path="/super/devices" element={<TenantDevices />} />
-          <Route path="/super/activity" element={<TenantActivity />} />
-          <Route path="/super/settings" element={<TenantSettings />} />
+            {/* Org Admin Routes */}
+            <Route 
+              path="/org/dashboard" 
+              element={
+                <ProtectedRoute allowedRoles={['org_admin', 'department_admin']}>
+                  <OrgDash />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/org/employees" 
+              element={
+                <ProtectedRoute allowedRoles={['org_admin', 'department_admin']}>
+                  <OrgEmployees />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/org/attendance" 
+              element={
+                <ProtectedRoute allowedRoles={['org_admin', 'department_admin']}>
+                  <OrgAttendance />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/org/today" 
+              element={
+                <ProtectedRoute allowedRoles={['org_admin', 'department_admin']}>
+                  <OrgToday />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/org/leaves" 
+              element={
+                <ProtectedRoute allowedRoles={['org_admin', 'department_admin']}>
+                  <OrgLeaves />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/org/report-att" 
+              element={
+                <ProtectedRoute allowedRoles={['org_admin', 'department_admin']}>
+                  <OrgReportAtt />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/org/report-leave" 
+              element={
+                <ProtectedRoute allowedRoles={['org_admin', 'department_admin']}>
+                  <OrgReportLeave />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/org/devices" 
+              element={
+                <ProtectedRoute allowedRoles={['org_admin', 'department_admin']}>
+                  <OrgDevices />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/org/settings" 
+              element={
+                <ProtectedRoute allowedRoles={['org_admin', 'department_admin']}>
+                  <OrgSettings />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/org/activity" 
+              element={
+                <ProtectedRoute allowedRoles={['org_admin', 'department_admin']}>
+                  <OrgActivity />
+                </ProtectedRoute>
+              } 
+            />
 
-          {/* Dept Admin (Org Admin) Routes */}
-          <Route path="/org/dashboard" element={<OrgDash />} />
-          <Route path="/org/employees" element={<OrgEmployees />} />
-          <Route path="/org/attendance" element={<OrgAttendance />} />
-          <Route path="/org/today" element={<OrgToday />} />
-          <Route path="/org/leaves" element={<OrgLeaves />} />
-          <Route path="/org/report-att" element={<OrgReportAtt />} />
-          <Route path="/org/report-leave" element={<OrgReportLeave />} />
-          <Route path="/org/devices" element={<OrgDevices />} />
-          <Route path="/org/settings" element={<OrgSettings />} />
-          <Route path="/org/activity" element={<OrgActivity />} />
+            {/* Employee Routes */}
+            <Route 
+              path="/emp/dashboard" 
+              element={
+                <ProtectedRoute allowedRoles={['employee', 'user']}>
+                  <EmpDash />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/emp/attendance" 
+              element={
+                <ProtectedRoute allowedRoles={['employee', 'user']}>
+                  <EmpAttendance />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/emp/leaves" 
+              element={
+                <ProtectedRoute allowedRoles={['employee', 'user']}>
+                  <EmpLeaves />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/emp/holidays" 
+              element={
+                <ProtectedRoute allowedRoles={['employee', 'user']}>
+                  <EmpHolidays />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/emp/profile" 
+              element={
+                <ProtectedRoute allowedRoles={['employee', 'user']}>
+                  <EmpProfile />
+                </ProtectedRoute>
+              } 
+            />
 
-          {/* Employee Routes */}
-          <Route path="/emp/dashboard" element={<EmpDash />} />
-          <Route path="/emp/attendance" element={<EmpAttendance />} />
-          <Route path="/emp/leaves" element={<EmpLeaves />} />
-          <Route path="/emp/holidays" element={<EmpHolidays />} />
-          <Route path="/emp/profile" element={<EmpProfile />} />
-
-
-          {/* Redirect / Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
+            {/* Catch-all - redirect to home */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

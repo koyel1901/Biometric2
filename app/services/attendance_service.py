@@ -9,20 +9,22 @@ import datetime
 async def process_attendance(tenant_id: int, device_id: str, finger_id: int, db: AsyncSession):
     """Logs attendance directly to DB with automatic IN/OUT toggling and fetches User name."""
     
-    # 1. Lookup the User's Name
+    # 1. Lookup the User
     user_stmt = select(User).where(User.tenant_id == tenant_id, User.finger_id == finger_id)
     user_result = await db.execute(user_stmt)
     user = user_result.scalars().first()
     user_name = user.name if user else "Unknown User"
+    user_id = user.id if user else None
     
-    # 2. Reset cycle every night at midnight
-    today = datetime.datetime.now(datetime.timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    # 2. Reset cycle every night at midnight (local/server time)
+    now = datetime.datetime.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     
     # 3. Fetch the user's most recent log for today
     stmt = select(AttendanceLog).where(
         AttendanceLog.tenant_id == tenant_id,
         AttendanceLog.finger_id == finger_id,
-        AttendanceLog.timestamp >= today
+        AttendanceLog.timestamp >= today_start
     ).order_by(desc(AttendanceLog.timestamp)).limit(1)
     
     result = await db.execute(stmt)
@@ -37,8 +39,9 @@ async def process_attendance(tenant_id: int, device_id: str, finger_id: int, db:
     log = AttendanceLog(
         tenant_id=tenant_id,
         device_id=device_id,
+        user_id=user_id, # <--- FIXED
         finger_id=finger_id,
-        timestamp=datetime.datetime.now(datetime.timezone.utc),
+        timestamp=datetime.datetime.now(),
         record_type=current_type
     )
     db.add(log)
@@ -47,6 +50,7 @@ async def process_attendance(tenant_id: int, device_id: str, finger_id: int, db:
     
     # Return both the log and the user_name
     return log, user_name
+
 
 async def process_bulk_attendance(tenant_id: int, device_id: str, logs: list, db: AsyncSession):
     """Handles offline sync logs."""
