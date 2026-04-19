@@ -1,5 +1,6 @@
+// src/components/Sidebar.jsx
 import React from 'react';
-import { NavLink, Link, useLocation } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import { 
   BarChart3, 
   Grid2X2, 
@@ -13,7 +14,11 @@ import {
   Clock,
   LayoutDashboard,
   UserCircle,
-  FileText
+  FileText,
+  Shield,
+  Users,
+  Send,
+  Briefcase
 } from 'lucide-react';
 
 const Sidebar = ({ role, label, iconColor }) => {
@@ -22,31 +27,35 @@ const Sidebar = ({ role, label, iconColor }) => {
       case 'superadmin':
         return [
           { icon: <BarChart3 size={18} />, label: 'Dashboard', path: '/super/dashboard' },
+          { icon: <Users size={18} />, label: 'Employees', path: '/super/employees' },
           { icon: <Package size={18} />, label: 'Departments', path: '/super/departments' },
+          { icon: <Shield size={18} />, label: 'Org Admins', path: '/super/org-admins' },
+          { icon: <Clock size={18} />, label: 'Attendance', path: '/super/attendance' },
+          { icon: <Briefcase size={18} />, label: 'Leaves', path: '/super/leaves' },
           { icon: <Calendar size={18} />, label: 'Holidays', path: '/super/holidays' },
-          { icon: <Cpu size={18} />, label: 'Devices (Global)', path: '/super/devices' },
-          { icon: <FileText size={18} />, label: 'Activity Log', path: '/super/activity' },
-          { icon: <Settings size={18} />, label: 'System Settings', path: '/super/settings' },
+          { icon: <Cpu size={18} />, label: 'Devices', path: '/super/devices' },
+          { icon: <Send size={18} />, label: 'Device Commands', path: '/super/device-commands' },
+          { icon: <Settings size={18} />, label: 'Settings', path: '/super/settings' },
         ];
       case 'orgadmin':
         return [
           { icon: <LayoutDashboard size={18} />, label: 'Dashboard', path: '/org/dashboard' },
-          { icon: <UserCircle size={18} />, label: 'All Employees', path: '/org/employees' },
+          { icon: <Users size={18} />, label: 'All Employees', path: '/org/employees' },
           { icon: <Clock size={18} />, label: 'Attendance List', path: '/org/attendance' },
           { icon: <Activity size={18} />, label: 'Today Attendance', path: '/org/today' },
-          { icon: <Calendar size={18} />, label: 'Leave Requests', path: '/org/leaves' },
+          { icon: <Briefcase size={18} />, label: 'Leave Requests', path: '/org/leaves' },
           { icon: <BarChart3 size={18} />, label: 'Attendance Report', path: '/org/report-att' },
           { icon: <FileText size={18} />, label: 'Leave Report', path: '/org/report-leave' },
           { icon: <Cpu size={18} />, label: 'Devices', path: '/org/devices' },
           { icon: <Settings size={18} />, label: 'Settings', path: '/org/settings' },
-          { icon: <Grid2X2 size={18} />, label: 'Activity Log', path: '/org/activity' },
         ];
       case 'user':
         return [
           { icon: <LayoutDashboard size={18} />, label: 'Dashboard', path: '/emp/dashboard' },
           { icon: <Clock size={18} />, label: 'Attendance List', path: '/emp/attendance' },
-          { icon: <Calendar size={18} />, label: 'Leave List', path: '/emp/leaves' },
-          { icon: <Activity size={18} />, label: 'Holidays', path: '/emp/holidays' },
+          { icon: <Briefcase size={18} />, label: 'Leave List', path: '/emp/leaves' },
+          { icon: <Calendar size={18} />, label: 'Holidays', path: '/emp/holidays' },
+          { icon: <UserCircle size={18} />, label: 'Profile', path: '/emp/profile' },
         ];
       default:
         return [];

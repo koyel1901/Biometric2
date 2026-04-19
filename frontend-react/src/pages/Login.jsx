@@ -1,8 +1,9 @@
 // src/pages/Login.jsx
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ShieldCheck, User, Lock, ArrowRight, ChevronLeft, Eye, EyeOff } from 'lucide-react';
+import { ShieldCheck, User, Lock, ArrowRight, ChevronLeft, Eye, EyeOff, Key } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { authApi } from '../services/api';
 
 const Login = () => {
   const { role } = useParams();
@@ -16,6 +17,7 @@ const Login = () => {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
+    apiKey: '', // For tenant login
     remember: false,
   });
 
@@ -23,23 +25,29 @@ const Login = () => {
   const roleConfigs = {
     tenant: {
       title: 'Tenant Admin',
-      subtitle: 'Global Command Center',
+      subtitle: 'API Key Authentication',
       color: 'var(--purple)',
       bgColor: 'rgba(168,85,247,0.1)',
-      btnText: 'Login as Tenant Admin',
+      btnText: 'Login with API Key',
       dashPath: '/super/dashboard',
       apiRole: 'tenant_admin',
-      icon: '⬡'
+      icon: '⬡',
+      useApiKey: true, // Flag to use API key instead of username/password
+      placeholder: 'Enter your API Key',
+      helpText: 'Use the API key provided by your system administrator'
     },
     org: {
       title: 'Org Admin',
-      subtitle: 'Enterprise Dashboard',
+      subtitle: 'Department Admin Portal',
       color: 'var(--teal)',
       bgColor: 'rgba(0,212,170,0.1)',
       btnText: 'Login as Org Admin',
       dashPath: '/org/dashboard',
       apiRole: 'org_admin',
-      icon: '◈'
+      icon: '◈',
+      useApiKey: false,
+      placeholder: 'Enter your email or employee code',
+      helpText: 'Use your organization email or employee ID'
     },
     employee: {
       title: 'Employee',
@@ -49,77 +57,74 @@ const Login = () => {
       btnText: 'Login as Employee',
       dashPath: '/emp/dashboard',
       apiRole: 'employee',
-      icon: '◉'
+      icon: '◉',
+      useApiKey: false,
+      placeholder: 'Enter your employee code or email',
+      helpText: 'Use your employee ID or registered email'
     }
   };
 
   const config = roleConfigs[role] || roleConfigs.employee;
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
+  // In Login.jsx - inside the component
+// In Login.jsx - update the handleLogin function
+const handleLogin = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError('');
+  
+  try {
+    let response;
+    let isApiKeyAuth = false;
     
-    // Create FormData instead of JSON for better compatibility
-    const formDataObj = new FormData();
-    formDataObj.append('username', formData.username);
-    formDataObj.append('password', formData.password);
-    
-    console.log('Sending username:', formData.username);
-    console.log('Sending password:', formData.password);
-    
-    try {
-      const endpoint = '/api/auth/login';
-      
-      const response = await fetch(`https://biometric-backend-1-e3lb.onrender.com${endpoint}`, {
-        method: 'POST',
-        headers: {
-          // Don't set Content-Type when using FormData - browser will set it with boundary
-        },
-        body: formDataObj, // Use FormData instead of JSON
-      });
-      
-      const data = await response.json();
-      console.log('Server response:', data);
-      
-      if (!response.ok) {
-        let errorMessage = 'Login failed. Please check your credentials.';
-        
-        if (data.detail) {
-          if (Array.isArray(data.detail)) {
-            errorMessage = data.detail.map(err => err.msg || err).join(', ');
-          } else if (typeof data.detail === 'string') {
-            errorMessage = data.detail;
-          }
-        } else if (data.message) {
-          errorMessage = data.message;
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      // Store the token
-      if (data.access_token) {
-        login(data.access_token, {
-          id: data.user_id || data.id,
-          role: config.apiRole,
-          name: data.name || formData.username,
-          username: formData.username,
-          email: data.email || `${formData.username}@example.com`,
-        });
-        
-        navigate(config.dashPath);
-      } else {
-        throw new Error('Invalid response from server - no access token');
-      }
-      
-    } catch (err) {
-      console.error('Login error details:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    if (config.useApiKey) {
+      // Tenant login with API key
+      console.log('🔑 Attempting tenant login with API key...');
+      response = await authApi.tenantLogin(formData.apiKey);
+      isApiKeyAuth = true;
+      console.log('✅ Tenant login response:', response);
+    } else {
+      // Regular login with username/password
+      console.log('👤 Attempting regular login...');
+      response = await authApi.login(formData.username, formData.password);
+      console.log('✅ Regular login response:', response);
     }
-  };
+
+    // Store the token and user info
+    if (isApiKeyAuth) {
+      const userData = {
+        id: response.tenant?.id,
+        role: config.apiRole,
+        name: response.tenant?.name || 'Tenant Admin',
+      };
+      login(null, userData, true);
+      console.log('🔐 Login called with userData:', userData);
+    } else {
+      const userData = {
+        id: response.user_id || response.id,
+        role: config.apiRole,
+        name: response.name || formData.username,
+        username: formData.username,
+        email: response.email,
+      };
+      login(response.access_token, userData, false);
+      console.log('🔐 Login called with userData:', userData);
+    }
+    
+    // Add a small delay to ensure auth state is updated before navigation
+    console.log('⏳ Waiting for auth state to update...');
+    setTimeout(() => {
+      console.log('🚀 Navigating to:', config.dashPath);
+      navigate(config.dashPath);
+    }, 100);
+    
+  } catch (err) {
+    console.error('❌ Login error:', err);
+    setError(err.message || 'Login failed. Please check your credentials.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -164,46 +169,72 @@ const Login = () => {
           )}
 
           <form className="login-form" onSubmit={handleLogin}>
-            <div className="form-group">
-              <label className="form-label">Username / Employee ID</label>
-              <div className="input-wrap">
-                <User className="input-icon" size={18} />
-                <input 
-                  type="text" 
-                  name="username"
-                  className="form-input" 
-                  placeholder="Enter your username or employee ID" 
-                  value={formData.username}
-                  onChange={handleInputChange}
-                  required
-                  autoComplete="username"
-                />
+            {config.useApiKey ? (
+              // Tenant Login with API Key only
+              <div className="form-group">
+                <label className="form-label">API Key</label>
+                <div className="input-wrap">
+                  <Key className="input-icon" size={18} />
+                  <input 
+                    type="text" 
+                    name="apiKey"
+                    className="form-input" 
+                    placeholder={config.placeholder}
+                    value={formData.apiKey}
+                    onChange={handleInputChange}
+                    required
+                    autoComplete="off"
+                  />
+                </div>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text3)', marginTop: '0.5rem' }}>
+                  {config.helpText}
+                </p>
               </div>
-            </div>
+            ) : (
+              // Regular Login with Username/Password
+              <>
+                <div className="form-group">
+                  <label className="form-label">Username / Employee ID</label>
+                  <div className="input-wrap">
+                    <User className="input-icon" size={18} />
+                    <input 
+                      type="text" 
+                      name="username"
+                      className="form-input" 
+                      placeholder={config.placeholder}
+                      value={formData.username}
+                      onChange={handleInputChange}
+                      required
+                      autoComplete="username"
+                    />
+                  </div>
+                </div>
 
-            <div className="form-group">
-              <label className="form-label">Password</label>
-              <div className="input-wrap">
-                <Lock className="input-icon" size={18} />
-                <input 
-                  type={showPassword ? 'text' : 'password'} 
-                  name="password"
-                  className="form-input" 
-                  placeholder="Enter your password" 
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  required
-                  autoComplete="current-password"
-                />
-                <button 
-                  type="button" 
-                  className="password-toggle"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
+                <div className="form-group">
+                  <label className="form-label">Password</label>
+                  <div className="input-wrap">
+                    <Lock className="input-icon" size={18} />
+                    <input 
+                      type={showPassword ? 'text' : 'password'} 
+                      name="password"
+                      className="form-input" 
+                      placeholder="Enter your password" 
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      required
+                      autoComplete="current-password"
+                    />
+                    <button 
+                      type="button" 
+                      className="password-toggle"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="login-options">
               <label className="checkbox-wrap" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
@@ -216,7 +247,9 @@ const Login = () => {
                 />
                 <span>Remember Device</span>
               </label>
-              <a href="#" className="forgot-link" style={{ color: config.color }}>Forgot Password?</a>
+              {!config.useApiKey && (
+                <a href="#" className="forgot-link" style={{ color: config.color }}>Forgot Password?</a>
+              )}
             </div>
 
             <button 

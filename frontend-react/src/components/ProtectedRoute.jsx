@@ -4,10 +4,13 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  const { user, token, loading } = useAuth();
+  const { user, token, authType, loading } = useAuth();
+
+  console.log('🛡️ ProtectedRoute check:', { user, token, authType, loading, allowedRoles });
 
   // Show loading state while checking authentication
   if (loading) {
+    console.log('⏳ Still loading...');
     return (
       <div style={{ 
         display: 'flex', 
@@ -31,23 +34,29 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   }
 
   // Check if user is authenticated
-  if (!token || !user) {
+  // For API key auth, we don't have a token but we have authType === 'api_key' and user
+  const isAuthenticated = token || authType === 'api_key';
+  
+  if (!isAuthenticated || !user) {
+    console.log('❌ Not authenticated, redirecting to home');
     return <Navigate to="/" replace />;
   }
 
   // Check if user has required role
   if (allowedRoles && !allowedRoles.includes(user.role)) {
+    console.log('❌ Role not allowed, redirecting to appropriate dashboard');
     // Redirect to appropriate dashboard based on role
-    if (user.role === 'tenant_admin' || user.role === 'superadmin') {
+    if (user.role === 'tenant_admin') {
       return <Navigate to="/super/dashboard" replace />;
-    } else if (user.role === 'org_admin' || user.role === 'department_admin') {
+    } else if (user.role === 'org_admin') {
       return <Navigate to="/org/dashboard" replace />;
-    } else if (user.role === 'employee' || user.role === 'user') {
+    } else if (user.role === 'employee') {
       return <Navigate to="/emp/dashboard" replace />;
     }
     return <Navigate to="/" replace />;
   }
 
+  console.log('✅ Access granted to protected route');
   return children;
 };
 

@@ -10,8 +10,13 @@ import Login from './pages/Login';
 // Tenant Imports
 import TenantDash from './pages/tenant/Dashboard';
 import TenantDepts from './pages/tenant/Departments';
+import TenantEmployees from './pages/tenant/Employees';
+import TenantAttendance from './pages/tenant/Attendance';
+import TenantLeaves from './pages/tenant/Leaves';
 import TenantHolidays from './pages/tenant/Holidays';
 import TenantDevices from './pages/tenant/Devices';
+import TenantDeviceCommands from './pages/tenant/DeviceCommands';
+import TenantOrgAdmins from './pages/tenant/OrgAdmins';
 import TenantActivity from './pages/tenant/Activity';
 import TenantSettings from './pages/tenant/Settings';
 
@@ -44,7 +49,7 @@ function App() {
             <Route path="/" element={<Gateway />} />
             <Route path="/login/:role" element={<Login />} />
 
-            {/* Tenant Admin Routes - Super Admin */}
+            {/* ==================== TENANT ADMIN ROUTES ==================== */}
             <Route 
               path="/super/dashboard" 
               element={
@@ -54,10 +59,42 @@ function App() {
               } 
             />
             <Route 
+              path="/super/employees" 
+              element={
+                <ProtectedRoute allowedRoles={['tenant_admin', 'superadmin']}>
+                  <TenantEmployees />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/super/departments" 
               element={
                 <ProtectedRoute allowedRoles={['tenant_admin', 'superadmin']}>
                   <TenantDepts />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/super/org-admins" 
+              element={
+                <ProtectedRoute allowedRoles={['tenant_admin', 'superadmin']}>
+                  <TenantOrgAdmins />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/super/attendance" 
+              element={
+                <ProtectedRoute allowedRoles={['tenant_admin', 'superadmin']}>
+                  <TenantAttendance />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/super/leaves" 
+              element={
+                <ProtectedRoute allowedRoles={['tenant_admin', 'superadmin']}>
+                  <TenantLeaves />
                 </ProtectedRoute>
               } 
             />
@@ -78,6 +115,14 @@ function App() {
               } 
             />
             <Route 
+              path="/super/device-commands" 
+              element={
+                <ProtectedRoute allowedRoles={['tenant_admin', 'superadmin']}>
+                  <TenantDeviceCommands />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/super/activity" 
               element={
                 <ProtectedRoute allowedRoles={['tenant_admin', 'superadmin']}>
@@ -94,7 +139,7 @@ function App() {
               } 
             />
 
-            {/* Org Admin Routes */}
+            {/* ==================== ORG ADMIN ROUTES ==================== */}
             <Route 
               path="/org/dashboard" 
               element={
@@ -176,7 +221,7 @@ function App() {
               } 
             />
 
-            {/* Employee Routes */}
+            {/* ==================== EMPLOYEE ROUTES ==================== */}
             <Route 
               path="/emp/dashboard" 
               element={
