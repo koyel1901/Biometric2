@@ -163,10 +163,21 @@ export const tenantApi = {
   deleteHoliday: (id) => apiRequest(`/api/tenant/holidays/${id}`, { method: 'DELETE' }),
   getUpcomingHolidays: (limit = 5) => apiRequest(`/api/tenant/holidays/upcoming?limit=${limit}`),
   
-  // Devices
+  // Devices (Full CRUD)
   getDevices: () => apiRequest('/api/tenant/devices'),
   getDeviceStatus: () => apiRequest('/api/tenant/devices/status'),
   getDeviceDetails: (deviceId) => apiRequest(`/api/tenant/devices/${deviceId}`),
+  createDevice: (data) => apiRequest('/api/tenant/devices', { 
+    method: 'POST', 
+    body: JSON.stringify(data) 
+  }),
+  updateDevice: (deviceId, data) => apiRequest(`/api/tenant/devices/${deviceId}`, { 
+    method: 'PUT', 
+    body: JSON.stringify(data) 
+  }),
+  deleteDevice: (deviceId) => apiRequest(`/api/tenant/devices/${deviceId}`, { 
+    method: 'DELETE' 
+  }),
   fireCommand: (data) => apiRequest('/api/tenant/devices/fire-command', { method: 'POST', body: JSON.stringify(data) }),
   
   // Org Admins
