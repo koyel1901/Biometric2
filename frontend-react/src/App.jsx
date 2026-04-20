@@ -22,6 +22,8 @@ import OrgReportLeave from './pages/org/ReportLeave';
 import OrgDevices from './pages/org/Devices';
 import OrgSettings from './pages/org/Settings';
 import OrgActivity from './pages/org/Activity';
+import Holidays from "./pages/org/Holidays";
+
 
 // Employee Imports
 import EmpDash from './pages/employee/Dashboard';
@@ -62,6 +64,7 @@ function App() {
           <Route path="/org/devices" element={<OrgDevices />} />
           <Route path="/org/settings" element={<OrgSettings />} />
           <Route path="/org/activity" element={<OrgActivity />} />
+          <Route path="/org/holidays" element={<Holidays />} />
 
           {/* Employee Routes */}
           <Route path="/emp/dashboard" element={<EmpDash />} />

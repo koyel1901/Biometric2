@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, User, Lock, ArrowRight, ChevronLeft, Eye, EyeOff } from 'lucide-react';
+import BASE_URL from "../services/api";
 
 const Login = () => {
   const { role } = useParams();
@@ -41,14 +42,89 @@ const Login = () => {
 
   const config = roleConfigs[role] || roleConfigs.employee;
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    setLoading(true);
-    // Simulation of network delay
-    setTimeout(() => {
-      navigate(config.dashPath);
-    }, 1200);
-  };
+  const handleLogin = async (e) => {
+
+  e.preventDefault();
+
+  setLoading(true);
+
+  const identifier = e.target[0].value;
+
+  const password = e.target[1].value;
+
+
+
+  try {
+
+    const response = await fetch(
+
+      `${BASE_URL}/api/auth/login`,
+
+      {
+
+        method: "POST",
+
+        headers:{
+          "Content-Type":"application/x-www-form-urlencoded"
+        },
+
+        body: new URLSearchParams({
+
+          username: identifier,
+
+          password: password
+
+        })
+
+      }
+
+    );
+
+
+
+    const data = await response.json();
+
+
+
+    if(!response.ok){
+
+      alert(data.detail || "Login failed");
+
+      setLoading(false);
+
+      return;
+
+    }
+
+
+
+    // store token
+
+    localStorage.setItem("token", data.access_token);
+
+
+
+    // redirect based on role
+
+    navigate(config.dashPath);
+
+
+
+  }
+
+  catch(err){
+
+    console.log(err);
+
+    alert("Server error");
+
+  }
+
+
+
+  setLoading(false);
+
+};
 
   return (
     <div className="login-page">
