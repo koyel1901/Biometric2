@@ -1,19 +1,9 @@
 version: '3.8'
 
 services:
-  api:
+  frontend:
     build: .
-    container_name: biometri_api
+    container_name: attendance-frontend
     restart: always
     ports:
-      - "8001:8000"
-    environment:
-      # --- NEON DB (Loaded securely from your .env file) ---
-      - DATABASE_URL=${DATABASE_URL}
-      
-      # --- MQTT BROKER ---
-      # (Update the broker domain here if you also renamed your MQTT server for Biometri)
-      - MQTT_BROKER=mqtt.gridsphere.in 
-      - MQTT_PORT=1883
-      - MQTT_USER=esp8266
-      - MQTT_PASS=strongpassword123
+      - "9002:80"

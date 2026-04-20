@@ -1,4 +1,4 @@
-// src/pages/org-admin/OrgDevices.jsx
+// src/pages/org/OrgDevices.jsx
 import React, { useState, useEffect } from 'react';
 import { 
   Cpu, 
@@ -193,10 +193,11 @@ const AddDeviceModal = ({ isOpen, onClose, onSuccess }) => {
   );
 };
 
-// Fire Command Modal
+// Fire Command Modal - UPDATED VERSION
 const FireCommandModal = ({ isOpen, onClose, device, onSuccess }) => {
   const [commandType, setCommandType] = useState('enroll');
-  const [targetId, setTargetId] = useState('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+  const [fingerId, setFingerId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [employees, setEmployees] = useState([]);
@@ -221,19 +222,48 @@ const FireCommandModal = ({ isOpen, onClose, device, onSuccess }) => {
     }
   };
 
+  // Get the selected employee object
+  const selectedEmployee = employees.find(emp => emp.id === parseInt(selectedEmployeeId));
+
+  // Auto-fill finger ID when employee is selected
+  useEffect(() => {
+    if (selectedEmployee && commandType === 'delete') {
+      // For delete command, auto-fill the existing finger ID
+      if (selectedEmployee.finger_id) {
+        setFingerId(selectedEmployee.finger_id.toString());
+      } else {
+        setFingerId('');
+        setError('This employee does not have a fingerprint assigned to delete');
+      }
+    } else if (selectedEmployee && commandType === 'enroll') {
+      // For enroll command, show current finger ID if exists, or leave empty for new enrollment
+      if (selectedEmployee.finger_id) {
+        setFingerId(selectedEmployee.finger_id.toString());
+      } else {
+        setFingerId('');
+      }
+    }
+  }, [selectedEmployee, commandType]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setError('');
 
-    if (!targetId) {
+    if (!selectedEmployeeId) {
+      setError('Please select an employee');
+      setSubmitting(false);
+      return;
+    }
+
+    if (!fingerId || fingerId.trim() === '') {
       setError('Please enter a Finger ID');
       setSubmitting(false);
       return;
     }
 
-    const targetIdNum = parseInt(targetId);
-    if (targetIdNum < 1 || targetIdNum > 127) {
+    const fingerIdNum = parseInt(fingerId);
+    if (fingerIdNum < 1 || fingerIdNum > 127) {
       setError('Finger ID must be between 1 and 127');
       setSubmitting(false);
       return;
@@ -243,11 +273,13 @@ const FireCommandModal = ({ isOpen, onClose, device, onSuccess }) => {
       await orgApi.fireCommand({
         device_id: device.device_id,
         command: commandType,
-        target_id: targetIdNum
+        target_id: fingerIdNum
       });
       onSuccess();
       onClose();
-      setTargetId('');
+      // Reset form
+      setSelectedEmployeeId('');
+      setFingerId('');
       setCommandType('enroll');
     } catch (err) {
       setError(err.message || 'Failed to send command');
@@ -258,6 +290,15 @@ const FireCommandModal = ({ isOpen, onClose, device, onSuccess }) => {
   };
 
   if (!isOpen || !device) return null;
+
+  // Filter employees based on command type
+  const filteredEmployees = employees.filter(emp => emp.is_active);
+
+  // Get employee display info
+  const getEmployeeDisplay = (emp) => {
+    const fingerInfo = emp.finger_id ? `FP-${String(emp.finger_id).padStart(3, '0')}` : 'Not enrolled';
+    return `${emp.name} (${emp.employee_code || 'No code'}) - ${fingerInfo}`;
+  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -293,7 +334,12 @@ const FireCommandModal = ({ isOpen, onClose, device, onSuccess }) => {
                 <button
                   type="button"
                   className={`command-btn ${commandType === 'enroll' ? 'active' : ''}`}
-                  onClick={() => setCommandType('enroll')}
+                  onClick={() => {
+                    setCommandType('enroll');
+                    setSelectedEmployeeId('');
+                    setFingerId('');
+                    setError('');
+                  }}
                 >
                   <Fingerprint size={18} />
                   Enroll Fingerprint
@@ -301,50 +347,92 @@ const FireCommandModal = ({ isOpen, onClose, device, onSuccess }) => {
                 <button
                   type="button"
                   className={`command-btn ${commandType === 'delete' ? 'active' : ''}`}
-                  onClick={() => setCommandType('delete')}
+                  onClick={() => {
+                    setCommandType('delete');
+                    setSelectedEmployeeId('');
+                    setFingerId('');
+                    setError('');
+                  }}
                 >
                   <Trash2 size={18} />
                   Delete Fingerprint
                 </button>
               </div>
+              <p className="form-hint" style={{ marginTop: '8px' }}>
+                {commandType === 'enroll' 
+                  ? 'Enroll a new fingerprint for the selected employee' 
+                  : 'Delete the fingerprint of the selected employee from the device'}
+              </p>
             </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                Select Employee
+              </label>
+              <select 
+                className="form-input"
+                value={selectedEmployeeId}
+                onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                required
+              >
+                <option value="">Select an employee...</option>
+                {filteredEmployees.map(emp => (
+                  <option key={emp.id} value={emp.id}>
+                    {getEmployeeDisplay(emp)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedEmployee && (
+              <div className="info-box">
+                <User size={14} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 500 }}>{selectedEmployee.name}</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text3)' }}>
+                    Code: {selectedEmployee.employee_code || 'N/A'} | 
+                    Department: {selectedEmployee.department_name || 'N/A'}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="form-group">
               <label className="form-label">
                 {commandType === 'enroll' ? 'Finger ID to Enroll' : 'Finger ID to Delete'}
               </label>
-              
-              {commandType === 'enroll' && employees.length > 0 && (
-                <select 
-                  className="form-input"
-                  value={targetId}
-                  onChange={(e) => setTargetId(e.target.value)}
-                >
-                  <option value="">Select an employee...</option>
-                  {employees.filter(emp => emp.finger_id).map(emp => (
-                    <option key={emp.id} value={emp.finger_id}>
-                      {emp.full_name} (ID: {emp.finger_id})
-                    </option>
-                  ))}
-                </select>
-              )}
-
               <input 
                 type="number"
                 className="form-input"
-                placeholder="Enter Finger ID (1-127)"
-                value={targetId}
-                onChange={(e) => setTargetId(e.target.value)}
+                placeholder={commandType === 'enroll' ? 'Enter Finger ID (1-127) or leave empty for auto-assign' : 'Finger ID will be auto-filled'}
+                value={fingerId}
+                onChange={(e) => setFingerId(e.target.value)}
                 min="1"
                 max="127"
-                required
+                required={commandType === 'delete'}
+                readOnly={commandType === 'delete' && selectedEmployee?.finger_id}
+                style={commandType === 'delete' && selectedEmployee?.finger_id ? { background: 'var(--bg3)', cursor: 'not-allowed' } : {}}
               />
               <p className="form-hint">
                 {commandType === 'enroll' 
-                  ? 'This fingerprint will be enrolled on the device' 
-                  : 'This fingerprint will be deleted from the device'}
+                  ? selectedEmployee?.finger_id 
+                    ? `⚠️ Employee already has Finger ID ${selectedEmployee.finger_id}. Enrolling a new ID will replace the existing one.`
+                    : 'Enter a Finger ID between 1-127, or leave empty to auto-assign the next available slot'
+                  : selectedEmployee?.finger_id 
+                    ? `This will delete Finger ID ${selectedEmployee.finger_id} from the device`
+                    : 'This employee does not have a fingerprint assigned'
+                  }
               </p>
             </div>
+
+            {commandType === 'enroll' && !fingerId && (
+              <div className="info-box" style={{ background: 'rgba(20,184,166,0.1)', borderColor: '#14b8a6' }}>
+                <CheckCircle size={14} color="#14b8a6" />
+                <span style={{ fontSize: '0.8rem' }}>
+                  The system will automatically assign the next available finger ID
+                </span>
+              </div>
+            )}
           </div>
           
           <div className="modal-footer">
@@ -352,7 +440,7 @@ const FireCommandModal = ({ isOpen, onClose, device, onSuccess }) => {
             <button 
               type="submit" 
               className="btn btn-primary" 
-              disabled={submitting || device.status !== 'online'}
+              disabled={submitting || device.status !== 'online' || (commandType === 'delete' && !selectedEmployee?.finger_id)}
               style={{ background: '#14b8a6' }}
             >
               {submitting ? 'Sending...' : 'Send Command'}
@@ -366,10 +454,12 @@ const FireCommandModal = ({ isOpen, onClose, device, onSuccess }) => {
           background: var(--bg2);
           border: 1px solid var(--border);
           border-radius: 24px;
-          max-width: 500px;
+          max-width: 550px;
           width: 90%;
           position: relative;
           animation: modalSlideIn 0.3s ease;
+          max-height: 90vh;
+          overflow-y: auto;
         }
         .modal-close-btn {
           position: absolute;
@@ -386,6 +476,10 @@ const FireCommandModal = ({ isOpen, onClose, device, onSuccess }) => {
           justify-content: center;
           transition: all 0.2s;
           z-index: 10;
+        }
+        .modal-close-btn:hover {
+          background: var(--bg4);
+          color: var(--text);
         }
         .modal-header {
           display: flex;
@@ -441,6 +535,20 @@ const FireCommandModal = ({ isOpen, onClose, device, onSuccess }) => {
           border-color: #14b8a6;
           color: white;
         }
+        .command-btn:hover:not(.active) {
+          background: var(--bg4);
+        }
+        .info-box {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px;
+          background: var(--bg3);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          font-size: 0.85rem;
+          margin-bottom: 16px;
+        }
         .modal-footer {
           padding: 16px 24px 24px 24px;
           border-top: 1px solid var(--border);
@@ -452,9 +560,10 @@ const FireCommandModal = ({ isOpen, onClose, device, onSuccess }) => {
           background: #14b8a6;
           color: white;
           border: none;
-          padding: 8px 16px;
+          padding: 8px 20px;
           border-radius: 8px;
           cursor: pointer;
+          font-size: 0.85rem;
         }
         .btn-primary:disabled {
           opacity: 0.5;
@@ -463,10 +572,58 @@ const FireCommandModal = ({ isOpen, onClose, device, onSuccess }) => {
         .btn-ghost {
           background: transparent;
           border: 1px solid var(--border);
-          padding: 8px 16px;
+          padding: 8px 20px;
           border-radius: 8px;
           cursor: pointer;
           color: var(--text2);
+          font-size: 0.85rem;
+        }
+        .btn-ghost:hover {
+          background: var(--bg3);
+        }
+        .error-message {
+          background: rgba(239,68,68,0.1);
+          border: 1px solid rgba(239,68,68,0.3);
+          border-radius: 10px;
+          padding: 10px 12px;
+          margin-bottom: 16px;
+          color: #f87171;
+          font-size: 0.85rem;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .form-group {
+          margin-bottom: 20px;
+        }
+        .form-label {
+          display: block;
+          font-size: 0.8rem;
+          font-weight: 500;
+          margin-bottom: 8px;
+          color: var(--text2);
+        }
+        .form-input {
+          width: 100%;
+          padding: 10px 12px;
+          background: var(--bg3);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          color: var(--text);
+          font-size: 0.85rem;
+        }
+        .form-input:focus {
+          outline: none;
+          border-color: #14b8a6;
+        }
+        .form-hint {
+          font-size: 0.7rem;
+          color: var(--text3);
+          margin-top: 6px;
+        }
+        @keyframes modalSlideIn {
+          from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
         }
       `}</style>
     </div>
@@ -664,6 +821,14 @@ const OrgDevices = () => {
           display: flex;
           align-items: center;
           gap: 6px;
+        }
+        .btn-red {
+          background: rgba(239,68,68,0.1);
+          color: #f87171;
+          border: 1px solid rgba(239,68,68,0.3);
+          padding: 6px 12px;
+          border-radius: 8px;
+          cursor: pointer;
         }
         .form-input {
           width: 100%;

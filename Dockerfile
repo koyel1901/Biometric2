@@ -1,19 +1,17 @@
-# Use an official lightweight Python image
-FROM python:3.11-slim
+FROM node:20-alpine AS builder
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy requirements and install them
-# (Make sure you have a requirements.txt with fastapi, uvicorn, sqlalchemy, asyncpg, paho-mqtt, etc.)
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY package*.json ./
+RUN npm ci && npm cache clean --force
 
-# Copy the rest of your project code
 COPY . .
+RUN npm run build
 
-# Expose the port FastAPI runs on
-EXPOSE 8000
+FROM nginx:alpine
 
-# Command to run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
