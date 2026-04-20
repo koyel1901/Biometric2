@@ -1,6 +1,6 @@
 // src/components/Topbar.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Moon, Sun, Bell, Menu } from 'lucide-react';
+import { Moon, Sun, Bell, Menu } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { employeeApi, notificationsAPI } from '../services/api';
@@ -124,10 +124,20 @@ const Topbar = ({ title, userAbbr, bgColor, iconColor, role }) => {
       case 'leave_submitted':
         return '📋';
       case 'leave_approved':
-      case 'leave_rejected':
+      case 'leave_approved_final':
         return '✅';
+      case 'leave_rejected':
+        return '❌';
       case 'attendance_marked':
         return '⏰';
+      case 'late_arrival':
+        return '⚠️';
+      case 'employee_added':
+        return '👥';
+      case 'employee_deactivated':
+        return '🔴';
+      case 'fingerprint_enrolled':
+        return '🖐️';
       default:
         return '🔔';
     }
@@ -144,9 +154,6 @@ const Topbar = ({ title, userAbbr, bgColor, iconColor, role }) => {
       </button>
       <span className="tb-title">{title}</span>
 
-      <div className="tb-search-wrap">
-        <input className="tb-search" type="text" placeholder="Search..." />
-      </div>
       <div style={{ flex: 1 }}></div>
 
       <button 
