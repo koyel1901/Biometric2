@@ -47,7 +47,8 @@ const Sidebar = ({ role, label, iconColor }) => {
           { icon: <BarChart3 size={18} />, label: 'Attendance Report', path: '/org/report-att' },
           { icon: <FileText size={18} />, label: 'Leave Report', path: '/org/report-leave' },
           { icon: <Cpu size={18} />, label: 'Devices', path: '/org/devices' },
-          { icon: <Settings size={18} />, label: 'Settings', path: '/org/settings' },
+          // ❌ SETTINGS REMOVED - Org Admins cannot access settings
+          { icon: <Grid2X2 size={18} />, label: 'Activity Log', path: '/org/activity' },
         ];
       case 'user':
         return [

@@ -13,17 +13,627 @@ import {
   Edit2,
   Trash2,
   X,
-  Check,
   Key,
-  Hash
+  Hash,
+  Activity,
+  Server,
+  CheckCircle,
+  AlertTriangle,
+  Power,
+  PowerOff
 } from 'lucide-react';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import Badge from '../../components/Badge';
+import ConfirmationModal from '../../components/ConfirmationModal';
 import { tenantApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
-const Devices = () => {
+// Premium Device Detail Modal
+const DeviceDetailModal = ({ device, onClose }) => {
+  const [recentCommands, setRecentCommands] = useState([]);
+  const [loading, setLoading] = useState(false);
   const { logout } = useAuth();
+
+  useEffect(() => {
+    if (device) {
+      fetchDeviceDetails();
+    }
+  }, [device]);
+
+  const fetchDeviceDetails = async () => {
+    setLoading(true);
+    try {
+      const data = await tenantApi.getDeviceDetails(device.device_id);
+      setRecentCommands(data.recent_commands || []);
+    } catch (err) {
+      console.error("Failed to fetch device details:", err);
+      if (err?.response?.status === 401) logout();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatTime = (timestamp) => {
+    if (!timestamp) return 'Never';
+    const date = new Date(timestamp);
+    return date.toLocaleString();
+  };
+
+  const getCommandStatusColor = (status) => {
+    if (!status) return 'pending';
+    if (status === 'SUCCESS') return 'active';
+    if (status === 'FAILED') return 'rejected';
+    return 'pending';
+  };
+
+  if (!device) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="device-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close-btn" onClick={onClose}>
+          <X size={20} />
+        </button>
+        
+        <div className="modal-header">
+          <div className={`modal-icon ${device.status === 'online' ? 'online' : 'offline'}`}>
+            {device.status === 'online' ? <Wifi size={28} /> : <WifiOff size={28} />}
+          </div>
+          <div className="modal-title-section">
+            <h3>{device.device_id}</h3>
+            <p>ID: {device.id}</p>
+          </div>
+          <Badge type={device.status === 'online' ? 'online' : 'offline'}>
+            {device.status === 'online' ? 'Online' : 'Offline'}
+          </Badge>
+        </div>
+        
+        <div className="modal-body">
+          <div className="info-grid">
+            <div className="info-item">
+              <div className="info-label"><Server size={14} /> Device ID</div>
+              <div className="info-value">{device.device_id}</div>
+            </div>
+            <div className="info-item">
+              <div className="info-label"><Key size={14} /> Secret Key</div>
+              <div className="info-value" style={{ fontFamily: 'var(--mono)', fontSize: '0.8rem' }}>
+                {device.secret_key ? '••••••••' : 'Not set'}
+              </div>
+            </div>
+            <div className="info-item">
+              <div className="info-label"><Clock size={14} /> Last Seen</div>
+              <div className="info-value">{formatTime(device.last_seen)}</div>
+            </div>
+            <div className="info-item">
+              <div className="info-label"><Activity size={14} /> Status</div>
+              <div className="info-value">
+                {device.status === 'online' ? (
+                  <span style={{ color: '#22c55e', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <CheckCircle size={14} /> Active and connected
+                  </span>
+                ) : (
+                  <span style={{ color: '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <AlertTriangle size={14} /> Not responding
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {recentCommands.length > 0 && (
+            <div className="commands-section">
+              <h4>Recent Commands</h4>
+              <div className="commands-list">
+                {recentCommands.map((cmd, idx) => (
+                  <div key={idx} className="command-item">
+                    <div className="command-details">
+                      <span className="command-name">{cmd.command}</span>
+                      {cmd.target_id && <span className="command-target">Target: {cmd.target_id}</span>}
+                    </div>
+                    <div className="command-status">
+                      <Badge type={getCommandStatusColor(cmd.status)}>
+                        {cmd.status || 'PENDING'}
+                      </Badge>
+                      <span className="command-time">{formatTime(cmd.created_at)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {loading && (
+            <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text3)' }}>
+              Loading commands...
+            </div>
+          )}
+        </div>
+        
+        <div className="modal-footer">
+          <button className="btn btn-ghost" onClick={onClose}>Close</button>
+        </div>
+      </div>
+      
+      <style>{`
+        .device-modal {
+          background: var(--bg2);
+          border: 1px solid var(--border);
+          border-radius: 24px;
+          max-width: 550px;
+          width: 90%;
+          position: relative;
+          animation: modalSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          overflow: hidden;
+        }
+        @keyframes modalSlideIn {
+          from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .modal-close-btn {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          background: var(--bg3);
+          border: none;
+          color: var(--text2);
+          cursor: pointer;
+          padding: 6px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+          z-index: 10;
+        }
+        .modal-close-btn:hover {
+          background: var(--bg4);
+          color: var(--text);
+        }
+        .modal-header {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 24px 24px 20px 24px;
+          border-bottom: 1px solid var(--border);
+          background: linear-gradient(135deg, var(--bg2), var(--bg3));
+        }
+        .modal-icon {
+          width: 56px;
+          height: 56px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .modal-icon.online {
+          background: rgba(34,197,94,0.1);
+          color: #22c55e;
+        }
+        .modal-icon.offline {
+          background: rgba(239,68,68,0.1);
+          color: #f87171;
+        }
+        .modal-title-section h3 {
+          font-size: 1.2rem;
+          font-weight: 600;
+          margin-bottom: 4px;
+        }
+        .modal-title-section p {
+          font-size: 0.75rem;
+          color: var(--text3);
+          font-family: var(--mono);
+        }
+        .modal-body {
+          padding: 20px 24px;
+          max-height: 500px;
+          overflow-y: auto;
+        }
+        .info-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          margin-bottom: 20px;
+        }
+        .info-item {
+          background: var(--bg3);
+          border-radius: 12px;
+          padding: 12px;
+        }
+        .info-label {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.7rem;
+          color: var(--text3);
+          font-family: var(--mono);
+          margin-bottom: 8px;
+        }
+        .info-value {
+          font-size: 0.9rem;
+          font-weight: 500;
+          color: var(--text);
+        }
+        .commands-section h4 {
+          font-size: 0.9rem;
+          font-weight: 600;
+          margin-bottom: 12px;
+          padding-bottom: 8px;
+          border-bottom: 1px solid var(--border);
+        }
+        .commands-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .command-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 10px;
+          background: var(--bg3);
+          border-radius: 10px;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .command-details {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+        }
+        .command-name {
+          font-family: var(--mono);
+          font-size: 0.8rem;
+          font-weight: 500;
+          text-transform: uppercase;
+        }
+        .command-target {
+          font-size: 0.7rem;
+          color: var(--text3);
+        }
+        .command-status {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .command-time {
+          font-size: 0.65rem;
+          color: var(--text3);
+          font-family: var(--mono);
+        }
+        .modal-footer {
+          padding: 16px 24px 24px 24px;
+          border-top: 1px solid var(--border);
+          display: flex;
+          justify-content: flex-end;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+// Add Device Modal
+const AddDeviceModal = ({ isOpen, onClose, onSuccess }) => {
+  const [formData, setFormData] = useState({ device_id: '', secret_key: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const { logout } = useAuth();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError('');
+    
+    if (!formData.device_id.trim()) {
+      setError('Device ID is required');
+      setSubmitting(false);
+      return;
+    }
+    if (!formData.secret_key.trim() || formData.secret_key.length < 8) {
+      setError('Secret key must be at least 8 characters');
+      setSubmitting(false);
+      return;
+    }
+    
+    try {
+      await tenantApi.createDevice(formData);
+      setFormData({ device_id: '', secret_key: '' });
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setError(err.message || 'Failed to add device');
+      if (err?.response?.status === 401) logout();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="add-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close-btn" onClick={onClose}>
+          <X size={20} />
+        </button>
+        
+        <div className="add-modal-header">
+          <div className="add-modal-icon">
+            <Cpu size={28} />
+          </div>
+          <h3>Add New Device</h3>
+          <p>Register a biometric device to your organization</p>
+        </div>
+        
+        <form onSubmit={handleSubmit}>
+          <div className="add-modal-body">
+            {error && (
+              <div className="error-message">
+                <AlertCircle size={16} /> {error}
+              </div>
+            )}
+            
+            <div className="form-group">
+              <label className="form-label"><Hash size={14} /> Device ID *</label>
+              <input 
+                className="form-input" 
+                placeholder="e.g., FP-001, DEVICE-01"
+                value={formData.device_id}
+                onChange={(e) => setFormData({ ...formData, device_id: e.target.value })}
+                required
+              />
+              <p className="form-hint">Unique identifier for this device</p>
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label"><Key size={14} /> Secret Key *</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                placeholder="Minimum 8 characters"
+                value={formData.secret_key}
+                onChange={(e) => setFormData({ ...formData, secret_key: e.target.value })}
+                required
+                minLength={8}
+              />
+              <p className="form-hint">Secret key for device authentication (min 8 chars)</p>
+            </div>
+          </div>
+          
+          <div className="add-modal-footer">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-teal" disabled={submitting}>
+              {submitting ? 'Adding...' : 'Add Device'}
+            </button>
+          </div>
+        </form>
+      </div>
+      
+      <style>{`
+        .add-modal {
+          background: var(--bg2);
+          border: 1px solid var(--border);
+          border-radius: 24px;
+          max-width: 450px;
+          width: 90%;
+          position: relative;
+          animation: modalSlideIn 0.3s ease;
+        }
+        .add-modal-header {
+          text-align: center;
+          padding: 24px 24px 16px 24px;
+          border-bottom: 1px solid var(--border);
+        }
+        .add-modal-icon {
+          width: 56px;
+          height: 56px;
+          background: rgba(168,85,247,0.1);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 12px;
+          color: #a855f7;
+        }
+        .add-modal-header h3 {
+          font-size: 1.3rem;
+          font-weight: 600;
+          margin-bottom: 4px;
+        }
+        .add-modal-header p {
+          font-size: 0.8rem;
+          color: var(--text3);
+        }
+        .add-modal-body {
+          padding: 20px 24px;
+        }
+        .error-message {
+          background: rgba(239,68,68,0.1);
+          border: 1px solid rgba(239,68,68,0.3);
+          border-radius: 10px;
+          padding: 10px 12px;
+          margin-bottom: 16px;
+          color: #f87171;
+          font-size: 0.85rem;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .form-hint {
+          font-size: 0.7rem;
+          color: var(--text3);
+          margin-top: 4px;
+        }
+        .add-modal-footer {
+          padding: 16px 24px 24px 24px;
+          border-top: 1px solid var(--border);
+          display: flex;
+          gap: 12px;
+          justify-content: flex-end;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+// Edit Device Modal
+const EditDeviceModal = ({ isOpen, onClose, device, onSuccess }) => {
+  const [formData, setFormData] = useState({ device_id: '', secret_key: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const { logout } = useAuth();
+
+  useEffect(() => {
+    if (device) {
+      setFormData({
+        device_id: device.device_id || '',
+        secret_key: ''
+      });
+    }
+  }, [device]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError('');
+    
+    const updateData = {};
+    if (formData.device_id && formData.device_id !== device.device_id) {
+      updateData.device_id = formData.device_id;
+    }
+    if (formData.secret_key && formData.secret_key.length >= 8) {
+      updateData.secret_key = formData.secret_key;
+    }
+    
+    if (Object.keys(updateData).length === 0) {
+      setError('No changes to update');
+      setSubmitting(false);
+      return;
+    }
+    
+    try {
+      await tenantApi.updateDevice(device.device_id, updateData);
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setError(err.message || 'Failed to update device');
+      if (err?.response?.status === 401) logout();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!isOpen || !device) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="edit-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close-btn" onClick={onClose}>
+          <X size={20} />
+        </button>
+        
+        <div className="edit-modal-header">
+          <div className="edit-modal-icon">
+            <Edit2 size={28} />
+          </div>
+          <h3>Edit Device</h3>
+          <p>Update device information</p>
+        </div>
+        
+        <form onSubmit={handleSubmit}>
+          <div className="edit-modal-body">
+            {error && (
+              <div className="error-message">
+                <AlertCircle size={16} /> {error}
+              </div>
+            )}
+            
+            <div className="form-group">
+              <label className="form-label"><Hash size={14} /> Device ID</label>
+              <input 
+                className="form-input" 
+                placeholder="New Device ID (optional)"
+                value={formData.device_id}
+                onChange={(e) => setFormData({ ...formData, device_id: e.target.value })}
+              />
+              <p className="form-hint">Current: <strong>{device.device_id}</strong></p>
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label"><Key size={14} /> Secret Key</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                placeholder="New secret key (optional, min 8 chars)"
+                value={formData.secret_key}
+                onChange={(e) => setFormData({ ...formData, secret_key: e.target.value })}
+                minLength={8}
+              />
+              <p className="form-hint">Leave empty to keep current secret key</p>
+            </div>
+          </div>
+          
+          <div className="edit-modal-footer">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-teal" disabled={submitting}>
+              {submitting ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+      
+      <style>{`
+        .edit-modal {
+          background: var(--bg2);
+          border: 1px solid var(--border);
+          border-radius: 24px;
+          max-width: 450px;
+          width: 90%;
+          position: relative;
+          animation: modalSlideIn 0.3s ease;
+        }
+        .edit-modal-header {
+          text-align: center;
+          padding: 24px 24px 16px 24px;
+          border-bottom: 1px solid var(--border);
+        }
+        .edit-modal-icon {
+          width: 56px;
+          height: 56px;
+          background: rgba(0,212,170,0.1);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 12px;
+          color: var(--teal);
+        }
+        .edit-modal-header h3 {
+          font-size: 1.3rem;
+          font-weight: 600;
+          margin-bottom: 4px;
+        }
+        .edit-modal-header p {
+          font-size: 0.8rem;
+          color: var(--text3);
+        }
+        .edit-modal-body {
+          padding: 20px 24px;
+        }
+        .edit-modal-footer {
+          padding: 16px 24px 24px 24px;
+          border-top: 1px solid var(--border);
+          display: flex;
+          gap: 12px;
+          justify-content: flex-end;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+// Main Devices Component
+const Devices = () => {
+  const { logout, user } = useAuth(); // Added user to check role
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -31,16 +641,12 @@ const Devices = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [stats, setStats] = useState({ total: 0, online: 0, offline: 0 });
   
-  // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  
-  // Form states
-  const [addForm, setAddForm] = useState({ device_id: '', secret_key: '' });
-  const [editForm, setEditForm] = useState({ device_id: '', secret_key: '' });
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchDevices();
@@ -49,7 +655,7 @@ const Devices = () => {
     const interval = setInterval(() => {
       fetchDevices();
       fetchDeviceStatus();
-    }, 15000);
+    }, 30000);
     
     return () => clearInterval(interval);
   }, []);
@@ -77,86 +683,34 @@ const Devices = () => {
     }
   };
 
-  const handleAddDevice = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setError('');
-    
-    if (!addForm.device_id.trim()) {
-      setError('Device ID is required');
-      setSubmitting(false);
-      return;
-    }
-    if (!addForm.secret_key.trim() || addForm.secret_key.length < 8) {
-      setError('Secret key must be at least 8 characters');
-      setSubmitting(false);
-      return;
-    }
-    
-    try {
-      await tenantApi.createDevice(addForm);
-      setSuccess('Device added successfully!');
-      setAddForm({ device_id: '', secret_key: '' });
-      setShowAddModal(false);
-      await fetchDevices();
-      await fetchDeviceStatus();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError(err.message || 'Failed to add device');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleEditDevice = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setError('');
-    
-    try {
-      await tenantApi.updateDevice(selectedDevice.device_id, editForm);
-      setSuccess('Device updated successfully!');
-      setShowEditModal(false);
-      await fetchDevices();
-      await fetchDeviceStatus();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError(err.message || 'Failed to update device');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const handleDeleteDevice = async () => {
-    setSubmitting(true);
-    setError('');
-    
+    if (!selectedDevice) return;
+    setDeleting(true);
     try {
       await tenantApi.deleteDevice(selectedDevice.device_id);
       setSuccess('Device deleted successfully!');
       setShowDeleteModal(false);
+      setSelectedDevice(null);
       await fetchDevices();
       await fetchDeviceStatus();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError(err.message || 'Failed to delete device');
+      setTimeout(() => setError(''), 3000);
     } finally {
-      setSubmitting(false);
+      setDeleting(false);
     }
   };
 
-  const openEditModal = (device) => {
-    setSelectedDevice(device);
-    setEditForm({
-      device_id: device.device_id,
-      secret_key: ''
-    });
-    setShowEditModal(true);
-  };
-
-  const openDeleteModal = (device) => {
-    setSelectedDevice(device);
-    setShowDeleteModal(true);
+  const isDeviceActuallyOnline = (device) => {
+    if (device.status !== 'online') return false;
+    if (!device.last_seen) return false;
+    
+    const lastSeen = new Date(device.last_seen);
+    const now = new Date();
+    const diffMinutes = (now - lastSeen) / 60000;
+    
+    return diffMinutes < 2; // Device is only online if heartbeat in last 2 mins
   };
 
   const formatLastSeen = (timestamp) => {
@@ -178,56 +732,39 @@ const Devices = () => {
     device.device_id?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const onlinePercent = stats.total > 0 ? ((stats.online / stats.total) * 100).toFixed(1) : 0;
+
   if (loading) {
     return (
       <DashboardLayout 
         title="Devices" 
-        role="superadmin" 
+        role={user?.role || "tenant"} 
         label="Tenant Admin" 
         abbr="TA" 
         color="#a855f7" 
         bgColor="rgba(168,85,247,0.15)"
       >
-        <div className="skeleton-loader" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-          {[1, 2, 3].map(i => <div key={i} style={{ background: 'var(--bg2)', borderRadius: '12px', height: '160px', animation: 'pulse 1.5s ease-in-out infinite' }}></div>)}
+        <div className="skeleton-loader" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
+          {[1, 2, 3, 4].map(i => <div key={i} style={{ background: 'var(--bg2)', borderRadius: '16px', height: '180px', animation: 'pulse 1.5s ease-in-out infinite' }}></div>)}
         </div>
       </DashboardLayout>
     );
   }
 
-  const onlinePercent = stats.total > 0 ? ((stats.online / stats.total) * 100).toFixed(1) : 0;
-
   return (
     <DashboardLayout 
       title="Devices" 
-      role="superadmin" 
+      role={user?.role || "tenant"} 
       label="Tenant Admin" 
       abbr="TA" 
       color="#a855f7" 
       bgColor="rgba(168,85,247,0.15)"
     >
       <style>{`
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0,0,0,0.7);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 2000;
-          backdrop-filter: blur(4px);
-        }
-        .modal-content {
-          background: var(--bg2);
-          border: 1px solid var(--border);
-          border-radius: 16px;
-          max-width: 450px;
-          width: 90%;
-          padding: 1.5rem;
-        }
+        .stat-card { transition: all 0.2s; cursor: pointer; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+        .device-card { transition: all 0.2s; cursor: pointer; }
+        .device-card:hover { transform: translateY(-2px); border-color: var(--teal); }
         .success-toast {
           position: fixed;
           bottom: 24px;
@@ -235,9 +772,12 @@ const Devices = () => {
           background: rgba(34,197,94,0.95);
           color: white;
           padding: 12px 20px;
-          border-radius: 8px;
+          border-radius: 12px;
           z-index: 1000;
           animation: slideIn 0.3s ease;
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
         @keyframes slideIn {
           from { transform: translateX(100%); opacity: 0; }
@@ -245,29 +785,26 @@ const Devices = () => {
         }
       `}</style>
 
-      {/* Success Toast */}
-      {success && <div className="success-toast">{success}</div>}
+      {success && <div className="success-toast"><CheckCircle size={18} /> {success}</div>}
 
-      {/* Stats Cards */}
       <div className="stats-grid">
         <div className="stat-card purple">
-          <div className="stat-label">Total Devices</div>
+          <div className="stat-label"><Server size={14} /> Total Devices</div>
           <div className="stat-value">{stats.total}</div>
           <div className="stat-sub">Registered in system</div>
         </div>
         <div className="stat-card green">
-          <div className="stat-label">Online</div>
+          <div className="stat-label"><Power size={14} /> Online</div>
           <div className="stat-value">{stats.online}</div>
           <div className="stat-sub">{onlinePercent}% of total</div>
         </div>
         <div className="stat-card red">
-          <div className="stat-label">Offline</div>
+          <div className="stat-label"><PowerOff size={14} /> Offline</div>
           <div className="stat-value">{stats.offline}</div>
           <div className="stat-sub">Needs attention</div>
         </div>
       </div>
 
-      {/* Search, Refresh and Add Button */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: '0.5rem', flex: 1, maxWidth: '300px' }}>
           <div className="input-wrap" style={{ flex: 1, position: 'relative' }}>
@@ -281,7 +818,7 @@ const Devices = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button className="btn btn-ghost" onClick={fetchDevices} title="Refresh">
+          <button className="btn btn-ghost" onClick={() => { fetchDevices(); fetchDeviceStatus(); }} title="Refresh">
             <RefreshCw size={16} />
           </button>
         </div>
@@ -292,13 +829,12 @@ const Devices = () => {
       </div>
 
       {error && (
-        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '12px', marginBottom: '1rem', color: '#f87171', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '12px', padding: '12px 16px', marginBottom: '1rem', color: '#f87171', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <AlertCircle size={16} /> {error}
           <button onClick={() => setError('')} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}>Dismiss</button>
         </div>
       )}
 
-      {/* Devices Grid */}
       {filteredDevices.length === 0 ? (
         <div className="card-box" style={{ textAlign: 'center', padding: '3rem' }}>
           <Cpu size={48} style={{ color: 'var(--text3)', marginBottom: '1rem' }} />
@@ -308,229 +844,125 @@ const Devices = () => {
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
-          {filteredDevices.map(device => (
-            <div key={device.device_id} style={{
-              background: 'var(--bg2)',
-              border: `1px solid ${device.status === 'online' ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`,
-              borderRadius: '12px',
-              padding: '1.25rem',
-              transition: 'all 0.2s'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '10px',
-                    background: device.status === 'online' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    {device.status === 'online' ? <Wifi size={20} style={{ color: '#22c55e' }} /> : <WifiOff size={20} style={{ color: '#ef4444' }} />}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem' }}>
+          {filteredDevices.map(device => {
+            const actuallyOnline = isDeviceActuallyOnline(device);
+            const displayStatus = actuallyOnline ? 'online' : 'offline';
+            
+            return (
+              <div key={device.device_id} className="device-card" style={{
+                background: 'var(--bg2)',
+                border: `1px solid ${displayStatus === 'online' ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`,
+                borderRadius: '16px',
+                padding: '1.25rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '14px',
+                      background: displayStatus === 'online' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {displayStatus === 'online' ? <Wifi size={24} style={{ color: '#22c55e' }} /> : <WifiOff size={24} style={{ color: '#ef4444' }} />}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '1rem' }}>{device.device_id}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text3)' }}>ID: {device.id}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{device.device_id}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text3)' }}>ID: {device.id}</div>
+                  <Badge type={displayStatus === 'online' ? 'online' : 'offline'}>
+                    {displayStatus === 'online' ? 'Online' : 'Offline'}
+                  </Badge>
+                </div>
+                
+                <div style={{ marginBottom: '1rem', padding: '0.75rem 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--text3)' }}>
+                    <Clock size={14} />
+                    Last seen: {formatLastSeen(device.last_seen)}
+                    {!actuallyOnline && device.status === 'online' && (
+                      <span style={{ color: '#f97316', marginLeft: 'auto', fontSize: '0.7rem' }}>
+                        ⚠️ Stale
+                      </span>
+                    )}
                   </div>
                 </div>
-                <Badge type={device.status === 'online' ? 'online' : 'offline'}>
-                  {device.status === 'online' ? 'Online' : 'Offline'}
-                </Badge>
-              </div>
-              
-              <div style={{ marginBottom: '1rem', padding: '0.5rem 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--text3)' }}>
-                  <Clock size={12} />
-                  Last seen: {formatLastSeen(device.last_seen)}
+                
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    className="btn btn-ghost" 
+                    style={{ flex: 1, fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                    onClick={() => {
+                      setSelectedDevice(device);
+                      setShowDetailModal(true);
+                    }}
+                  >
+                    <Activity size={14} /> View Details
+                  </button>
+                  <button 
+                    className="btn btn-ghost" 
+                    style={{ padding: '6px 12px' }}
+                    onClick={() => {
+                      setSelectedDevice(device);
+                      setShowEditModal(true);
+                    }}
+                    title="Edit Device"
+                  >
+                    <Edit2 size={14} />
+                  </button>
+                  <button 
+                    className="btn btn-red" 
+                    style={{ padding: '6px 12px' }}
+                    onClick={() => {
+                      setSelectedDevice(device);
+                      setShowDeleteModal(true);
+                    }}
+                    title="Delete Device"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
-              
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button 
-                  className="btn btn-ghost" 
-                  style={{ flex: 1, fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
-                  onClick={() => window.location.href = `/super/devices/${device.device_id}`}
-                >
-                  <ChevronRight size={14} /> View Details
-                </button>
-                <button 
-                  className="btn btn-ghost" 
-                  style={{ padding: '4px 10px' }}
-                  onClick={() => openEditModal(device)}
-                  title="Edit Device"
-                >
-                  <Edit2 size={14} />
-                </button>
-                <button 
-                  className="btn btn-red" 
-                  style={{ padding: '4px 10px' }}
-                  onClick={() => openDeleteModal(device)}
-                  title="Delete Device"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Add Device Modal */}
-      {showAddModal && (
-        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Add New Device</h3>
-              <button className="btn btn-ghost" onClick={() => setShowAddModal(false)} style={{ padding: '4px' }}>
-                <X size={20} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleAddDevice}>
-              <div className="form-group">
-                <label className="form-label">Device ID *</label>
-                <div className="input-wrap" style={{ position: 'relative' }}>
-                  <Hash size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)' }} />
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    style={{ paddingLeft: '32px' }}
-                    placeholder="e.g., FP-001, DEVICE-01"
-                    value={addForm.device_id}
-                    onChange={(e) => setAddForm({ ...addForm, device_id: e.target.value })}
-                    required
-                  />
-                </div>
-                <p style={{ fontSize: '0.7rem', color: 'var(--text3)', marginTop: '4px' }}>
-                  Unique identifier for this device
-                </p>
-              </div>
-              
-              <div className="form-group" style={{ marginTop: '1rem' }}>
-                <label className="form-label">Secret Key *</label>
-                <div className="input-wrap" style={{ position: 'relative' }}>
-                  <Key size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)' }} />
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    style={{ paddingLeft: '32px' }}
-                    placeholder="Minimum 8 characters"
-                    value={addForm.secret_key}
-                    onChange={(e) => setAddForm({ ...addForm, secret_key: e.target.value })}
-                    required
-                    minLength={8}
-                  />
-                </div>
-                <p style={{ fontSize: '0.7rem', color: 'var(--text3)', marginTop: '4px' }}>
-                  Secret key for device authentication (min 8 chars)
-                </p>
-              </div>
-              
-              <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setShowAddModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-teal" disabled={submitting}>
-                  {submitting ? 'Adding...' : 'Add Device'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Modals */}
+      <AddDeviceModal 
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={() => { fetchDevices(); fetchDeviceStatus(); }}
+      />
 
-      {/* Edit Device Modal */}
-      {showEditModal && selectedDevice && (
-        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Edit Device</h3>
-              <button className="btn btn-ghost" onClick={() => setShowEditModal(false)} style={{ padding: '4px' }}>
-                <X size={20} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleEditDevice}>
-              <div className="form-group">
-                <label className="form-label">Device ID</label>
-                <div className="input-wrap" style={{ position: 'relative' }}>
-                  <Hash size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)' }} />
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    style={{ paddingLeft: '32px' }}
-                    value={editForm.device_id}
-                    onChange={(e) => setEditForm({ ...editForm, device_id: e.target.value })}
-                    placeholder="New Device ID (optional)"
-                  />
-                </div>
-                <p style={{ fontSize: '0.7rem', color: 'var(--text3)', marginTop: '4px' }}>
-                  Leave empty to keep current: <strong>{selectedDevice.device_id}</strong>
-                </p>
-              </div>
-              
-              <div className="form-group" style={{ marginTop: '1rem' }}>
-                <label className="form-label">Secret Key</label>
-                <div className="input-wrap" style={{ position: 'relative' }}>
-                  <Key size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)' }} />
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    style={{ paddingLeft: '32px' }}
-                    placeholder="New secret key (optional, min 8 chars)"
-                    value={editForm.secret_key}
-                    onChange={(e) => setEditForm({ ...editForm, secret_key: e.target.value })}
-                    minLength={8}
-                  />
-                </div>
-                <p style={{ fontSize: '0.7rem', color: 'var(--text3)', marginTop: '4px' }}>
-                  Leave empty to keep current secret key
-                </p>
-              </div>
-              
-              <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setShowEditModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-teal" disabled={submitting}>
-                  {submitting ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <EditDeviceModal 
+        isOpen={showEditModal}
+        onClose={() => { setShowEditModal(false); setSelectedDevice(null); }}
+        device={selectedDevice}
+        onSuccess={() => { fetchDevices(); fetchDeviceStatus(); }}
+      />
 
-      {/* Delete Device Modal */}
-      {showDeleteModal && selectedDevice && (
-        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Delete Device</h3>
-              <button className="btn btn-ghost" onClick={() => setShowDeleteModal(false)} style={{ padding: '4px' }}>
-                <X size={20} />
-              </button>
-            </div>
-            
-            <p style={{ marginBottom: '1rem', color: 'var(--text2)' }}>
-              Are you sure you want to delete device <strong>{selectedDevice.device_id}</strong>?
-            </p>
-            <p style={{ marginBottom: '1.5rem', fontSize: '0.8rem', color: 'var(--text3)' }}>
-              This action cannot be undone. All command history for this device will be lost.
-            </p>
-            
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-              <button className="btn btn-ghost" onClick={() => setShowDeleteModal(false)}>
-                Cancel
-              </button>
-              <button className="btn btn-red" onClick={handleDeleteDevice} disabled={submitting}>
-                {submitting ? 'Deleting...' : 'Delete Device'}
-              </button>
-            </div>
-          </div>
-        </div>
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => { setShowDeleteModal(false); setSelectedDevice(null); }}
+        onConfirm={handleDeleteDevice}
+        title="Delete Device"
+        message={`Are you sure you want to delete device "${selectedDevice?.device_id}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+        confirmVariant="danger"
+        loading={deleting}
+      />
+
+      {showDetailModal && selectedDevice && (
+        <DeviceDetailModal 
+          device={selectedDevice} 
+          onClose={() => { setShowDetailModal(false); setSelectedDevice(null); }}
+        />
       )}
     </DashboardLayout>
   );

@@ -16,26 +16,18 @@ async function apiRequest(endpoint, options = {}) {
   const apiKey = getApiKey();
   const authType = getAuthType();
   
-  // Start with base headers
   const headers = {};
   
-  // Add auth header based on type
   if (authType === 'api_key' && apiKey) {
     headers['X-API-Key'] = apiKey;
-    console.log('🔑 Using API Key auth:', apiKey.substring(0, 10) + '...');
   } else if (token) {
     headers['Authorization'] = `Bearer ${token}`;
-    console.log('🔐 Using Bearer token auth');
-  } else {
-    console.warn('⚠️ No auth credentials found');
   }
   
-  // Only add Content-Type if not FormData
   if (!(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
   
-  // Merge with options headers
   const finalHeaders = { ...headers, ...options.headers };
   
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -51,7 +43,7 @@ async function apiRequest(endpoint, options = {}) {
   return response.json();
 }
 
-// Employee APIs - all routes under /api/employee/
+// ==================== EMPLOYEE APIs ====================
 export const employeeApi = {
   getDashboard: () => apiRequest('/api/employee/dashboard'),
   getTodayAttendance: () => apiRequest('/api/employee/attendance/today'),
@@ -96,38 +88,38 @@ export const employeeApi = {
   markAllRead: () => apiRequest('/api/employee/notifications/read-all', { method: 'PATCH' }),
 };
 
-// Organization Admin APIs
+// ==================== ORGANIZATION ADMIN APIs ====================
 export const orgApi = {
-  getDashboard: () => apiRequest('/api/org/dashboard'),
-  getEmployees: () => apiRequest('/api/org/employees'),
-  getAvailableSlots: () => apiRequest('/api/org/employees/available-finger-slots'),
-  createEmployee: (data) => apiRequest('/api/org/employees', { method: 'POST', body: JSON.stringify(data) }),
-  updateEmployee: (id, data) => apiRequest(`/api/org/employees/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteEmployee: (id) => apiRequest(`/api/org/employees/${id}`, { method: 'DELETE' }),
-  assignFingerprint: (id, data) => apiRequest(`/api/org/employees/${id}/assign-fingerprint`, { method: 'PATCH', body: JSON.stringify(data) }),
-  getAttendance: (date) => apiRequest(`/api/org/attendance?date=${date}`),
-  getTodayAttendance: () => apiRequest('/api/org/attendance/today'),
-  getLeaveRequests: () => apiRequest('/api/org/leaves'),
-  approveLeave: (id) => apiRequest(`/api/org/leaves/${id}/approve`, { method: 'PATCH' }),
-  rejectLeave: (id) => apiRequest(`/api/org/leaves/${id}/reject`, { method: 'PATCH' }),
-  getDevices: () => apiRequest('/api/org/devices'),
-  getDeviceStatus: () => apiRequest('/api/org/devices/status'),
-  fireCommand: (data) => apiRequest('/api/org/devices/fire-command', { method: 'POST', body: JSON.stringify(data) }),
-  getActivityLog: () => apiRequest('/api/org/activity'),
-  getSettings: () => apiRequest('/api/org/settings'),
-  updateSettings: (data) => apiRequest('/api/org/settings', { method: 'PUT', body: JSON.stringify(data) }),
-  getHolidays: () => apiRequest('/api/org/holidays'),
-  getUpcomingHolidays: (limit = 5) => apiRequest(`/api/org/holidays/upcoming?limit=${limit}`),
+  getDashboard: () => apiRequest('/api/org-admin/dashboard'),
+  getEmployees: () => apiRequest('/api/org-admin/employees'),
+  getAvailableSlots: () => apiRequest('/api/org-admin/employees/available-finger-slots'),
+  createEmployee: (data) => apiRequest('/api/org-admin/employees', { method: 'POST', body: JSON.stringify(data) }),
+  updateEmployee: (id, data) => apiRequest(`/api/org-admin/employees/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteEmployee: (id) => apiRequest(`/api/org-admin/employees/${id}`, { method: 'DELETE' }),
+  assignFingerprint: (id, data) => apiRequest(`/api/org-admin/employees/${id}/assign-fingerprint`, { method: 'PATCH', body: JSON.stringify(data) }),
+  getAttendance: (date) => apiRequest(`/api/org-admin/attendance?date=${date}`),
+  getTodayAttendance: () => apiRequest('/api/org-admin/attendance/today'),
+  getAttendanceByDate: (date) => apiRequest(`/api/org-admin/attendance/date/${date}`),
+  getLeaveRequests: () => apiRequest('/api/org-admin/leaves'),
+  approveLeave: (id) => apiRequest(`/api/org-admin/leaves/${id}/approve`, { method: 'PATCH' }),
+  rejectLeave: (id, reason) => apiRequest(`/api/org-admin/leaves/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ reason }) }),
+  getHolidays: () => apiRequest('/api/org-admin/holidays'),
+  getUpcomingHolidays: (limit = 5) => apiRequest(`/api/org-admin/holidays/upcoming?limit=${limit}`),
+  // Device management
+  getDevices: () => apiRequest('/api/org-admin/devices'),
+  getDeviceStatus: () => apiRequest('/api/org-admin/devices/status'),
+  createDevice: (data) => apiRequest('/api/org-admin/devices', { method: 'POST', body: JSON.stringify(data) }),
+  fireCommand: (data) => apiRequest('/api/org-admin/devices/fire-command', { method: 'POST', body: JSON.stringify(data) }),
+  getActivityLog: () => apiRequest('/api/org-admin/activity'),
+  getSettings: () => apiRequest('/api/org-admin/settings'),
+  updateSettings: (data) => apiRequest('/api/org-admin/settings', { method: 'PUT', body: JSON.stringify(data) }),
 };
 
-// Tenant Admin APIs
+// ==================== TENANT ADMIN APIs ====================
 export const tenantApi = {
-  // Dashboard
   getDashboard: () => apiRequest('/api/tenant/dashboard'),
   getRecentAttendance: () => apiRequest('/api/tenant/attendance/recent'),
   getAttendanceStats: () => apiRequest('/api/tenant/attendance/stats'),
-  
-  // Attendance Management
   getAttendanceByDate: (date, deptId) => {
     const params = deptId ? `?dept_id=${deptId}` : '';
     return apiRequest(`/api/tenant/attendance/date/${date}${params}`);
@@ -145,15 +137,11 @@ export const tenantApi = {
     if (year) params.append('year', year);
     return apiRequest(`/api/tenant/reports/department-summary?${params.toString()}`);
   },
-  
-  // Departments
   getDepartments: () => apiRequest('/api/tenant/departments'),
   createDepartment: (data) => apiRequest('/api/tenant/departments', { method: 'POST', body: JSON.stringify(data) }),
   updateDepartment: (id, data) => apiRequest(`/api/tenant/departments/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   updateDepartmentStatus: (id, data) => apiRequest(`/api/tenant/departments/${id}/status`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteDepartment: (id) => apiRequest(`/api/tenant/departments/${id}`, { method: 'DELETE' }),
-  
-  // Holidays
   getHolidays: (year) => {
     const params = year ? `?year=${year}` : '';
     return apiRequest(`/api/tenant/holidays${params}`);
@@ -162,31 +150,17 @@ export const tenantApi = {
   updateHoliday: (id, data) => apiRequest(`/api/tenant/holidays/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteHoliday: (id) => apiRequest(`/api/tenant/holidays/${id}`, { method: 'DELETE' }),
   getUpcomingHolidays: (limit = 5) => apiRequest(`/api/tenant/holidays/upcoming?limit=${limit}`),
-  
-  // Devices (Full CRUD)
   getDevices: () => apiRequest('/api/tenant/devices'),
   getDeviceStatus: () => apiRequest('/api/tenant/devices/status'),
   getDeviceDetails: (deviceId) => apiRequest(`/api/tenant/devices/${deviceId}`),
-  createDevice: (data) => apiRequest('/api/tenant/devices', { 
-    method: 'POST', 
-    body: JSON.stringify(data) 
-  }),
-  updateDevice: (deviceId, data) => apiRequest(`/api/tenant/devices/${deviceId}`, { 
-    method: 'PUT', 
-    body: JSON.stringify(data) 
-  }),
-  deleteDevice: (deviceId) => apiRequest(`/api/tenant/devices/${deviceId}`, { 
-    method: 'DELETE' 
-  }),
+  createDevice: (data) => apiRequest('/api/tenant/devices', { method: 'POST', body: JSON.stringify(data) }),
+  updateDevice: (deviceId, data) => apiRequest(`/api/tenant/devices/${deviceId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteDevice: (deviceId) => apiRequest(`/api/tenant/devices/${deviceId}`, { method: 'DELETE' }),
   fireCommand: (data) => apiRequest('/api/tenant/devices/fire-command', { method: 'POST', body: JSON.stringify(data) }),
-  
-  // Org Admins
   getOrgAdmins: () => apiRequest('/api/tenant/org-admins'),
   createOrgAdmin: (data) => apiRequest('/api/tenant/org-admins', { method: 'POST', body: JSON.stringify(data) }),
   updateOrgAdmin: (id, data) => apiRequest(`/api/tenant/org-admins/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteOrgAdmin: (id) => apiRequest(`/api/tenant/org-admins/${id}`, { method: 'DELETE' }),
-  
-  // Leaves
   getLeaveStats: () => apiRequest('/api/tenant/leaves/stats'),
   getLeaveRequests: (status, deptId) => {
     const params = new URLSearchParams();
@@ -200,8 +174,6 @@ export const tenantApi = {
     const body = reason ? JSON.stringify({ reason }) : '{}';
     return apiRequest(`/api/tenant/leaves/${id}/reject`, { method: 'PATCH', body });
   },
-  
-  // Employees
   getAllEmployees: (deptId) => {
     const params = deptId ? `?dept_id=${deptId}` : '';
     return apiRequest(`/api/tenant/employees${params}`);
@@ -214,17 +186,13 @@ export const tenantApi = {
     return apiRequest(`/api/tenant/employees/${id}/attendance?${params.toString()}`);
   },
   findEmployeeByFingerprint: (fingerId) => apiRequest(`/api/tenant/employees/fingerprint/${fingerId}`),
-  
-  // Settings
   getSettings: () => apiRequest('/api/tenant/settings'),
   updateSettings: (data) => apiRequest('/api/tenant/settings', { method: 'PUT', body: JSON.stringify(data) }),
   getTenantProfile: () => apiRequest('/api/tenant/profile'),
-  
-  // Activity
   getActivityLog: () => apiRequest('/api/tenant/activity'),
 };
 
-// Super Admin APIs
+// ==================== SUPER ADMIN APIs ====================
 export const superAdminApi = {
   getTenants: () => apiRequest('/api/superadmin/tenants'),
   createTenant: (data) => apiRequest('/api/superadmin/tenants', { method: 'POST', body: JSON.stringify(data) }),
@@ -233,7 +201,7 @@ export const superAdminApi = {
   deleteTenant: (id) => apiRequest(`/api/superadmin/tenants/${id}`, { method: 'DELETE' }),
 };
 
-// Auth APIs
+// ==================== AUTH APIs ====================
 export const authApi = {
   login: (username, password) => {
     const formData = new URLSearchParams();
@@ -242,9 +210,7 @@ export const authApi = {
     
     return fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: formData,
     }).then(async (response) => {
       if (!response.ok) {
@@ -252,49 +218,29 @@ export const authApi = {
         throw new Error(error.detail || 'Login failed');
       }
       const data = await response.json();
-      
-      // Clear any existing API key auth
       localStorage.removeItem('api_key');
       localStorage.setItem('auth_type', 'bearer');
       localStorage.setItem('access_token', data.access_token);
-      if (data.refresh_token) {
-        localStorage.setItem('refresh_token', data.refresh_token);
-      }
-      
+      if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
       return data;
     });
   },
   
   tenantLogin: (apiKey) => {
-    console.log('🔑 Tenant login with API key:', apiKey.substring(0, 10) + '...');
-    
     return fetch(`${API_BASE_URL}/api/auth/tenant-login`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ api_key: apiKey }),
     }).then(async (response) => {
-      console.log('📡 Tenant login response status:', response.status);
-      
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.detail || 'Invalid API Key');
       }
-      
       const data = await response.json();
-      console.log('✅ Tenant login successful');
-      
-      // Clear any existing bearer token
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
-      
-      // Store API key for subsequent requests
       localStorage.setItem('api_key', apiKey);
       localStorage.setItem('auth_type', 'api_key');
-      
-      console.log('💾 Stored API key in localStorage, auth_type set to: api_key');
-      
       return data;
     });
   },
@@ -310,26 +256,14 @@ export const authApi = {
     localStorage.removeItem('api_key');
     localStorage.removeItem('auth_type');
     localStorage.removeItem('user');
-    console.log('🔓 Logged out, cleared all auth data');
   },
   
-  changePassword: (data) => apiRequest('/api/auth/change-password', { 
-    method: 'POST', 
-    body: JSON.stringify(data) 
-  }),
-  
-  setPassword: (data) => apiRequest('/api/auth/set-password', { 
-    method: 'POST', 
-    body: JSON.stringify(data) 
-  }),
-  
-  createSuperAdmin: (data) => apiRequest('/api/auth/setup/super-admin', { 
-    method: 'POST', 
-    body: JSON.stringify(data) 
-  }),
+  changePassword: (data) => apiRequest('/api/auth/change-password', { method: 'POST', body: JSON.stringify(data) }),
+  setPassword: (data) => apiRequest('/api/auth/set-password', { method: 'POST', body: JSON.stringify(data) }),
+  createSuperAdmin: (data) => apiRequest('/api/auth/setup/super-admin', { method: 'POST', body: JSON.stringify(data) }),
 };
 
-// For backward compatibility
+// Backward compatibility
 export const attendanceAPI = employeeApi;
 export const profileAPI = employeeApi;
 export const dashboardAPI = employeeApi;

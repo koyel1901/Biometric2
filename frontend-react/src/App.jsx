@@ -7,6 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Gateway from './pages/Gateway';
 import Login from './pages/Login';
 
+
 // Tenant Imports
 import TenantDash from './pages/tenant/Dashboard';
 import TenantDepts from './pages/tenant/Departments';
@@ -28,8 +29,7 @@ import OrgToday from './pages/org/Today';
 import OrgLeaves from './pages/org/Leaves';
 import OrgReportAtt from './pages/org/ReportAtt';
 import OrgReportLeave from './pages/org/ReportLeave';
-import OrgDevices from './pages/org/Devices';
-import OrgSettings from './pages/org/Settings';
+import OrgDevices from './pages/org/OrgDevices';  // Updated import path
 import OrgActivity from './pages/org/Activity';
 
 // Employee Imports
@@ -201,14 +201,6 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['org_admin', 'department_admin']}>
                   <OrgDevices />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/org/settings" 
-              element={
-                <ProtectedRoute allowedRoles={['org_admin', 'department_admin']}>
-                  <OrgSettings />
                 </ProtectedRoute>
               } 
             />
