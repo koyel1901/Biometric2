@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Trash2, Calendar as CalendarIcon, Search, RefreshCw, AlertCircle } from 'lucide-react';
 import DashboardLayout from '../../layouts/DashboardLayout';
+import ConfirmationModal from '../../components/ConfirmationModal';
 import { tenantApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -16,6 +17,11 @@ const Holidays = () => {
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  
+  // Modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingHoliday, setDeletingHoliday] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchHolidays();
@@ -55,16 +61,26 @@ const Holidays = () => {
     }
   };
 
-  const handleDeleteHoliday = async (holidayId, holidayName) => {
-    if (!window.confirm(`Delete "${holidayName}"? This action cannot be undone.`)) return;
-    
+  const handleDeleteClick = (holiday) => {
+    setDeletingHoliday(holiday);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingHoliday) return;
+    setDeleting(true);
     try {
-      await tenantApi.deleteHoliday(holidayId);
+      await tenantApi.deleteHoliday(deletingHoliday.holiday_id);
       await fetchHolidays();
       setSuccessMessage('Holiday deleted successfully!');
+      setShowDeleteModal(false);
+      setDeletingHoliday(null);
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       setError(err.message || 'Failed to delete holiday');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -117,6 +133,13 @@ const Holidays = () => {
       color="#a855f7" 
       bgColor="rgba(168,85,247,0.15)"
     >
+      <style>{`
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `}</style>
+
       {successMessage && (
         <div style={{
           position: 'fixed', bottom: '24px', right: '24px',
@@ -127,6 +150,20 @@ const Holidays = () => {
           {successMessage}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => { setShowDeleteModal(false); setDeletingHoliday(null); }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Holiday"
+        message={`Are you sure you want to delete "${deletingHoliday?.name}" on ${formatDate(deletingHoliday?.holiday_date)}? This action cannot be undone.`}
+        confirmText="Delete Holiday"
+        cancelText="Cancel"
+        type="danger"
+        confirmVariant="danger"
+        loading={deleting}
+      />
 
       {view === 'list' && (
         <>
@@ -234,7 +271,7 @@ const Holidays = () => {
                       </div>
                       <button 
                         className="btn btn-red" 
-                        onClick={() => handleDeleteHoliday(holiday.holiday_id, holiday.name)}
+                        onClick={() => handleDeleteClick(holiday)}
                         style={{ padding: '4px 8px' }}
                       >
                         <Trash2 size={14} />

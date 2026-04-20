@@ -633,7 +633,7 @@ const EditDeviceModal = ({ isOpen, onClose, device, onSuccess }) => {
 
 // Main Devices Component
 const Devices = () => {
-  const { logout, user } = useAuth(); // Added user to check role
+  const { logout } = useAuth();
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -705,12 +705,10 @@ const Devices = () => {
   const isDeviceActuallyOnline = (device) => {
     if (device.status !== 'online') return false;
     if (!device.last_seen) return false;
-    
     const lastSeen = new Date(device.last_seen);
     const now = new Date();
     const diffMinutes = (now - lastSeen) / 60000;
-    
-    return diffMinutes < 2; // Device is only online if heartbeat in last 2 mins
+    return diffMinutes < 2;
   };
 
   const formatLastSeen = (timestamp) => {
@@ -721,7 +719,6 @@ const Devices = () => {
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
-    
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins} min ago`;
     if (diffHours < 24) return `${diffHours} hr ago`;
@@ -732,13 +729,11 @@ const Devices = () => {
     device.device_id?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const onlinePercent = stats.total > 0 ? ((stats.online / stats.total) * 100).toFixed(1) : 0;
-
   if (loading) {
     return (
       <DashboardLayout 
         title="Devices" 
-        role={user?.role || "tenant"} 
+        role="superadmin"
         label="Tenant Admin" 
         abbr="TA" 
         color="#a855f7" 
@@ -747,6 +742,7 @@ const Devices = () => {
         <div className="skeleton-loader" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
           {[1, 2, 3, 4].map(i => <div key={i} style={{ background: 'var(--bg2)', borderRadius: '16px', height: '180px', animation: 'pulse 1.5s ease-in-out infinite' }}></div>)}
         </div>
+        <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }`}</style>
       </DashboardLayout>
     );
   }
@@ -754,15 +750,13 @@ const Devices = () => {
   return (
     <DashboardLayout 
       title="Devices" 
-      role={user?.role || "tenant"} 
+      role="superadmin"
       label="Tenant Admin" 
       abbr="TA" 
       color="#a855f7" 
       bgColor="rgba(168,85,247,0.15)"
     >
       <style>{`
-        .stat-card { transition: all 0.2s; cursor: pointer; }
-        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
         .device-card { transition: all 0.2s; cursor: pointer; }
         .device-card:hover { transform: translateY(-2px); border-color: var(--teal); }
         .success-toast {
@@ -783,27 +777,10 @@ const Devices = () => {
           from { transform: translateX(100%); opacity: 0; }
           to { transform: translateX(0); opacity: 1; }
         }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
       `}</style>
 
       {success && <div className="success-toast"><CheckCircle size={18} /> {success}</div>}
-
-      <div className="stats-grid">
-        <div className="stat-card purple">
-          <div className="stat-label"><Server size={14} /> Total Devices</div>
-          <div className="stat-value">{stats.total}</div>
-          <div className="stat-sub">Registered in system</div>
-        </div>
-        <div className="stat-card green">
-          <div className="stat-label"><Power size={14} /> Online</div>
-          <div className="stat-value">{stats.online}</div>
-          <div className="stat-sub">{onlinePercent}% of total</div>
-        </div>
-        <div className="stat-card red">
-          <div className="stat-label"><PowerOff size={14} /> Offline</div>
-          <div className="stat-value">{stats.offline}</div>
-          <div className="stat-sub">Needs attention</div>
-        </div>
-      </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: '0.5rem', flex: 1, maxWidth: '300px' }}>

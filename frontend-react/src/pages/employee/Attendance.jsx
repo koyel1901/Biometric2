@@ -6,12 +6,6 @@ import { employeeApi } from '../../services/api';
 
 const Attendance = () => {
   const [attendanceList, setAttendanceList] = useState([]);
-  const [stats, setStats] = useState({
-    total_present_days: 0,
-    total_late_days: 0,
-    total_hours_worked: 0,
-    average_hours_per_day: 0,
-  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -19,15 +13,12 @@ const Attendance = () => {
 
   useEffect(() => {
     fetchAttendanceData();
-  }, [selectedMonth, selectedYear]); // Re-fetch when month or year changes
+  }, [selectedMonth, selectedYear]);
 
   const fetchAttendanceData = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Fetch attendance history for selected month/year
-      // Note: The API might need to be updated to accept month/year parameters
-      // For now, we'll filter on the frontend
       const history = await employeeApi.getAttendanceHistory();
       
       console.log('All attendance history:', history);
@@ -42,20 +33,7 @@ const Attendance = () => {
       
       console.log(`Filtered for ${selectedMonth}/${selectedYear}:`, filteredHistory);
       
-      // Calculate stats for filtered records
-      const calculatedStats = {
-        total_present_days: filteredHistory.filter(r => r.status === 'present').length,
-        total_late_days: filteredHistory.filter(r => r.punctuality === 'late').length,
-        total_hours_worked: filteredHistory.reduce((sum, r) => sum + (r.hours_worked || 0), 0),
-        average_hours_per_day: 0,
-      };
-      
-      calculatedStats.average_hours_per_day = calculatedStats.total_present_days > 0 
-        ? calculatedStats.total_hours_worked / calculatedStats.total_present_days 
-        : 0;
-      
       setAttendanceList(filteredHistory);
-      setStats(calculatedStats);
       
     } catch (err) {
       console.error('Failed to fetch attendance:', err);
@@ -177,36 +155,94 @@ const Attendance = () => {
       color="#f59e0b" 
       bgColor="rgba(245,158,11,0.15)"
     >
-      {/* Stats Summary Cards */}
-      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <div className="stat-card green">
-          <div className="stat-label">Total Present</div>
-          <div className="stat-value">{stats.total_present_days || 0}</div>
-          <div className="stat-sub">For selected month</div>
-        </div>
-        <div className="stat-card amber">
-          <div className="stat-label">Late Days</div>
-          <div className="stat-value">{stats.total_late_days || 0}</div>
-          <div className="stat-sub">For selected month</div>
-        </div>
-        <div className="stat-card teal">
-          <div className="stat-label">Total Hours</div>
-          <div className="stat-value">{stats.total_hours_worked || 0}h</div>
-          <div className="stat-sub">For selected month</div>
-        </div>
-        <div className="stat-card purple">
-          <div className="stat-label">Avg Hours/Day</div>
-          <div className="stat-value">{stats.average_hours_per_day || 0}h</div>
-          <div className="stat-sub">When present</div>
-        </div>
-      </div>
+      <style>{`
+        .table-wrap {
+          background: var(--bg2);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          overflow: hidden;
+        }
+        .table-header {
+          padding: 1rem 1.25rem;
+          border-bottom: 1px solid var(--border);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 1rem;
+        }
+        .table-title {
+          font-size: 0.95rem;
+          font-weight: 500;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        th {
+          padding: 0.75rem 1rem;
+          font-size: 0.72rem;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+          color: var(--text3);
+          border-bottom: 1px solid var(--border);
+          text-align: left;
+          font-family: var(--mono);
+          font-weight: 400;
+        }
+        td {
+          padding: 0.85rem 1rem;
+          font-size: 0.85rem;
+          border-bottom: 1px solid var(--border);
+          color: var(--text2);
+        }
+        tr:last-child td {
+          border-bottom: none;
+        }
+        tr:hover td {
+          background: var(--bg3);
+        }
+        .badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 3px 10px;
+          border-radius: 20px;
+          font-size: 0.72rem;
+          font-weight: 500;
+          font-family: var(--mono);
+        }
+        .badge.present {
+          background: rgba(34,197,94,0.1);
+          color: #4ade80;
+          border: 1px solid rgba(34,197,94,0.2);
+        }
+        .badge.late {
+          background: rgba(245,158,11,0.1);
+          color: #fbbf24;
+          border: 1px solid rgba(245,158,11,0.2);
+        }
+        .badge.absent {
+          background: rgba(239,68,68,0.1);
+          color: #f87171;
+          border: 1px solid rgba(239,68,68,0.2);
+        }
+        .form-select {
+          background: var(--bg3);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 0.4rem 0.8rem;
+          font-size: 0.82rem;
+          color: var(--text);
+          font-family: var(--font);
+        }
+      `}</style>
 
       <div className="table-wrap">
         <div className="table-header">
           <span className="table-title">My Attendance</span>
           <select 
             className="form-select" 
-            style={{ width: '180px', padding: '0.4rem 0.8rem', fontSize: '0.82rem' }}
+            style={{ width: '180px' }}
             value={currentSelection}
             onChange={handleMonthChange}
           >

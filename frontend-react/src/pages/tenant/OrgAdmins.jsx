@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Search, RefreshCw, AlertCircle, Mail, Building2, Shield, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import Badge from '../../components/Badge';
+import ConfirmationModal from '../../components/ConfirmationModal';
 import { tenantApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -18,6 +19,11 @@ const OrgAdmins = () => {
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [generatedPassword, setGeneratedPassword] = useState('');
+  
+  // Modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingAdmin, setDeletingAdmin] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -99,16 +105,26 @@ const OrgAdmins = () => {
     }
   };
 
-  const handleDeleteAdmin = async (adminId, adminName) => {
-    if (!window.confirm(`Deactivate "${adminName}"? This will prevent them from accessing the system.`)) return;
-    
+  const handleDeleteClick = (admin) => {
+    setDeletingAdmin(admin);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingAdmin) return;
+    setDeleting(true);
     try {
-      await tenantApi.deleteOrgAdmin(adminId);
+      await tenantApi.deleteOrgAdmin(deletingAdmin.id);
       await fetchData();
       setSuccessMessage('Org admin deactivated successfully');
+      setShowDeleteModal(false);
+      setDeletingAdmin(null);
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       setError(err.message || 'Failed to delete org admin');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -158,6 +174,7 @@ const OrgAdmins = () => {
         }
       `}</style>
 
+      {/* Success Message Toast */}
       {successMessage && (
         <div style={{
           position: 'fixed', bottom: '24px', right: '24px',
@@ -174,6 +191,7 @@ const OrgAdmins = () => {
         </div>
       )}
       
+      {/* Error Message */}
       {error && (
         <div style={{ 
           background: 'rgba(239,68,68,0.1)', 
@@ -189,6 +207,20 @@ const OrgAdmins = () => {
           <AlertCircle size={16} /> {error}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => { setShowDeleteModal(false); setDeletingAdmin(null); }}
+        onConfirm={handleConfirmDelete}
+        title="Deactivate Org Admin"
+        message={`Are you sure you want to deactivate "${deletingAdmin?.name}"? This will prevent them from accessing the system and managing their department. They can be reactivated later if needed.`}
+        confirmText="Deactivate"
+        cancelText="Cancel"
+        type="danger"
+        confirmVariant="danger"
+        loading={deleting}
+      />
 
       {view === 'list' && (
         <>
@@ -310,7 +342,7 @@ const OrgAdmins = () => {
                     </button>
                     <button 
                       className="btn btn-red" 
-                      onClick={() => handleDeleteAdmin(admin.id, admin.name)}
+                      onClick={() => handleDeleteClick(admin)}
                       style={{ fontSize: '0.75rem', padding: '4px 10px' }}
                     >
                       <Trash2 size={12} style={{ marginRight: '4px' }} /> Delete

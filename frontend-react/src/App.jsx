@@ -122,6 +122,7 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+                
             <Route 
               path="/super/activity" 
               element={

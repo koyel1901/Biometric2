@@ -1,11 +1,12 @@
 // src/pages/org/Employees.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Plus, RefreshCw, AlertCircle, CheckCircle, Eye, Fingerprint, Mail, Building2, User, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Plus, RefreshCw, AlertCircle, CheckCircle, Eye, Fingerprint, Mail, Building2, User, Trash2, X, Edit2 } from 'lucide-react';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import Badge from '../../components/Badge';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import { orgApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { Calendar } from 'lucide-react';
 
 function Toast({ message, type = 'success', onClose }) {
   useEffect(() => {
@@ -30,7 +31,7 @@ function Toast({ message, type = 'success', onClose }) {
 }
 
 // Premium Employee Detail Modal Component
-const EmployeeDetailModal = ({ employee, onClose }) => {
+const EmployeeDetailModal = ({ employee, onClose, onEdit }) => {
   if (!employee) return null;
 
   return (
@@ -85,6 +86,9 @@ const EmployeeDetailModal = ({ employee, onClose }) => {
         </div>
         
         <div className="modal-footer">
+          <button className="btn btn-teal" onClick={() => { onClose(); onEdit(employee); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Edit2 size={16} /> Edit Employee
+          </button>
           <button className="btn btn-ghost" onClick={onClose}>Close</button>
         </div>
       </div>
@@ -189,6 +193,225 @@ const EmployeeDetailModal = ({ employee, onClose }) => {
           padding: 16px 24px 24px 24px;
           border-top: 1px solid var(--border);
           display: flex;
+          gap: 12px;
+          justify-content: flex-end;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+// Edit Employee Modal Component
+const EditEmployeeModal = ({ isOpen, onClose, employee, onSuccess, departments }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    employee_code: '',
+    finger_id: '',
+    dept_id: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const { logout } = useAuth();
+
+  useEffect(() => {
+    if (employee && isOpen) {
+      setFormData({
+        name: employee.name || '',
+        email: employee.email || '',
+        employee_code: employee.employee_code || '',
+        finger_id: employee.finger_id || '',
+        dept_id: employee.department_id || ''
+      });
+    }
+  }, [employee, isOpen]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError('');
+
+    const updateData = {};
+    if (formData.name !== employee.name) updateData.name = formData.name;
+    if (formData.email !== employee.email) updateData.email = formData.email;
+    if (formData.employee_code !== employee.employee_code) updateData.employee_code = formData.employee_code;
+    if (formData.finger_id !== employee.finger_id && formData.finger_id) updateData.finger_id = parseInt(formData.finger_id);
+    if (formData.dept_id !== employee.department_id && formData.dept_id) updateData.dept_id = parseInt(formData.dept_id);
+
+    if (Object.keys(updateData).length === 0) {
+      setError('No changes to update');
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      await orgApi.updateEmployee(employee.id, updateData);
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setError(err.message || 'Failed to update employee');
+      if (err?.response?.status === 401) logout();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!isOpen || !employee) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="edit-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close-btn" onClick={onClose}>
+          <X size={20} />
+        </button>
+        
+        <div className="edit-modal-header">
+          <div className="edit-modal-icon">
+            <Edit2 size={28} />
+          </div>
+          <h3>Edit Employee</h3>
+          <p>Update employee information</p>
+        </div>
+        
+        <form onSubmit={handleSubmit}>
+          <div className="edit-modal-body">
+            {error && (
+              <div className="error-message">
+                <AlertCircle size={16} /> {error}
+              </div>
+            )}
+            
+            <div className="form-group">
+              <label className="form-label">Full Name</label>
+              <input 
+                className="form-input" 
+                placeholder="Employee name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input 
+                type="email"
+                className="form-input" 
+                placeholder="employee@company.com"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Employee Code</label>
+              <input 
+                className="form-input" 
+                placeholder="Employee code"
+                value={formData.employee_code}
+                onChange={(e) => setFormData({ ...formData, employee_code: e.target.value })}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Fingerprint ID</label>
+              <input 
+                type="number"
+                className="form-input" 
+                placeholder="Finger ID (1-127)"
+                value={formData.finger_id}
+                onChange={(e) => setFormData({ ...formData, finger_id: e.target.value })}
+                min="1"
+                max="127"
+              />
+              <p className="form-hint">Leave empty to keep current fingerprint assignment</p>
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Department</label>
+              <select 
+                className="form-select"
+                value={formData.dept_id}
+                onChange={(e) => setFormData({ ...formData, dept_id: e.target.value })}
+              >
+                <option value="">Select a department</option>
+                {departments.filter(d => d.is_active).map(dept => (
+                  <option key={dept.department_id} value={dept.department_id}>
+                    {dept.department_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          <div className="edit-modal-footer">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-teal" disabled={submitting}>
+              {submitting ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+      
+      <style>{`
+        .edit-modal {
+          background: var(--bg2);
+          border: 1px solid var(--border);
+          border-radius: 24px;
+          max-width: 500px;
+          width: 90%;
+          position: relative;
+          animation: modalSlideIn 0.3s ease;
+        }
+        .edit-modal-header {
+          text-align: center;
+          padding: 24px 24px 16px 24px;
+          border-bottom: 1px solid var(--border);
+        }
+        .edit-modal-icon {
+          width: 56px;
+          height: 56px;
+          background: rgba(0,212,170,0.1);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 12px;
+          color: var(--teal);
+        }
+        .edit-modal-header h3 {
+          font-size: 1.3rem;
+          font-weight: 600;
+          margin-bottom: 4px;
+        }
+        .edit-modal-header p {
+          font-size: 0.8rem;
+          color: var(--text3);
+        }
+        .edit-modal-body {
+          padding: 20px 24px;
+        }
+        .error-message {
+          background: rgba(239,68,68,0.1);
+          border: 1px solid rgba(239,68,68,0.3);
+          border-radius: 10px;
+          padding: 10px 12px;
+          margin-bottom: 16px;
+          color: #f87171;
+          font-size: 0.85rem;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .form-hint {
+          font-size: 0.7rem;
+          color: var(--text3);
+          margin-top: 4px;
+        }
+        .edit-modal-footer {
+          padding: 16px 24px 24px 24px;
+          border-top: 1px solid var(--border);
+          display: flex;
+          gap: 12px;
           justify-content: flex-end;
         }
       `}</style>
@@ -200,6 +423,7 @@ const Employees = () => {
   const { logout } = useAuth();
   const [view, setView] = useState('list');
   const [employees, setEmployees] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [slots, setSlots] = useState({ available: [] });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -213,17 +437,20 @@ const Employees = () => {
   const [deactivating, setDeactivating] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
     setApiError('');
     try {
-      const [empRes, slotRes] = await Promise.all([
+      const [empRes, slotRes, deptRes] = await Promise.all([
         orgApi.getEmployees(),
         orgApi.getAvailableSlots(),
+        orgApi.getDepartments ? orgApi.getDepartments() : Promise.resolve([]),
       ]);
       setEmployees(empRes || []);
       setSlots(slotRes || { available: [] });
+      setDepartments(deptRes || []);
     } catch (err) {
       if (err?.response?.status === 401) { logout(); return; }
       setApiError('Failed to load employees');
@@ -278,6 +505,13 @@ const Employees = () => {
     }
   };
 
+  const handleUpdateSuccess = () => {
+    setToast({ message: 'Employee updated successfully!', type: 'success' });
+    fetchEmployees();
+    setShowEditModal(false);
+    setSelectedEmployee(null);
+  };
+
   const openDeactivateModal = (emp) => {
     setDeactivatingEmp(emp);
     setShowDeactivateModal(true);
@@ -286,6 +520,12 @@ const Employees = () => {
   const openDetailModal = (emp) => {
     setSelectedEmployee(emp);
     setShowDetailModal(true);
+  };
+
+  const openEditModal = (emp) => {
+    setSelectedEmployee(emp);
+    setShowEditModal(true);
+    setShowDetailModal(false);
   };
 
   if (loading) {
@@ -326,7 +566,21 @@ const Employees = () => {
       />
 
       {showDetailModal && selectedEmployee && (
-        <EmployeeDetailModal employee={selectedEmployee} onClose={() => setShowDetailModal(false)} />
+        <EmployeeDetailModal 
+          employee={selectedEmployee} 
+          onClose={() => setShowDetailModal(false)}
+          onEdit={openEditModal}
+        />
+      )}
+
+      {showEditModal && selectedEmployee && (
+        <EditEmployeeModal 
+          isOpen={showEditModal}
+          onClose={() => { setShowEditModal(false); setSelectedEmployee(null); }}
+          employee={selectedEmployee}
+          onSuccess={handleUpdateSuccess}
+          departments={departments}
+        />
       )}
 
       {view === 'list' && (
@@ -378,6 +632,9 @@ const Employees = () => {
                         <div style={{ display: 'flex', gap: '6px' }}>
                           <button className="btn btn-ghost" onClick={() => openDetailModal(emp)} style={{ padding: '6px 12px' }} title="View Details">
                             <Eye size={14} /> View
+                          </button>
+                          <button className="btn btn-teal" onClick={() => openEditModal(emp)} style={{ padding: '6px 12px' }} title="Edit Employee">
+                            <Edit2 size={14} /> Edit
                           </button>
                           <button className="btn btn-red" onClick={() => openDeactivateModal(emp)} disabled={!emp.is_active} style={{ padding: '6px 12px' }} title="Deactivate">
                             <Trash2 size={14} /> Deactivate
