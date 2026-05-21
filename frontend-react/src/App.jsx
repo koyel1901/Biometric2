@@ -6,7 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Gateway from './pages/Gateway';
 import Login from './pages/Login';
-
+import ChangeApiKey from './pages/tenant/ChangeApiKey';
 
 // Tenant Imports
 import TenantDash from './pages/tenant/Dashboard';
@@ -29,8 +29,9 @@ import OrgToday from './pages/org/Today';
 import OrgLeaves from './pages/org/Leaves';
 import OrgReportAtt from './pages/org/ReportAtt';
 import OrgReportLeave from './pages/org/ReportLeave';
-import OrgDevices from './pages/org/OrgDevices';  // Updated import path
+import OrgDevices from './pages/org/OrgDevices';
 import OrgActivity from './pages/org/Activity';
+import OrgChangePassword from './pages/org/ChangePassword';  // ✅ ADDED
 
 // Employee Imports
 import EmpDash from './pages/employee/Dashboard';
@@ -122,7 +123,6 @@ function App() {
                 </ProtectedRoute>
               } 
             />
-                
             <Route 
               path="/super/activity" 
               element={
@@ -136,6 +136,15 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['tenant_admin', 'superadmin']}>
                   <TenantSettings />
+                </ProtectedRoute>
+              } 
+            />
+            {/* ✅ NEW: Change API Key Route */}
+            <Route 
+              path="/super/change-api-key" 
+              element={
+                <ProtectedRoute allowedRoles={['tenant_admin', 'superadmin']}>
+                  <ChangeApiKey />
                 </ProtectedRoute>
               } 
             />
@@ -210,6 +219,15 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['org_admin', 'department_admin']}>
                   <OrgActivity />
+                </ProtectedRoute>
+              } 
+            />
+            {/* ✅ NEW: Org Admin Change Password Route */}
+            <Route 
+              path="/org/change-password" 
+              element={
+                <ProtectedRoute allowedRoles={['org_admin', 'department_admin']}>
+                  <OrgChangePassword />
                 </ProtectedRoute>
               } 
             />

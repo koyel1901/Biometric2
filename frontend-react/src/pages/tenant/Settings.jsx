@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import { tenantApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { Save, AlertCircle, CheckCircle, Clock, Calendar, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Save, AlertCircle, CheckCircle, Clock, Calendar, AlertTriangle, RefreshCw, Briefcase } from 'lucide-react';
 
 const TenantSettings = () => {
   const { logout } = useAuth();
@@ -11,7 +11,8 @@ const TenantSettings = () => {
     office_start_time: '09:00:00',
     office_end_time: '18:00:00',
     late_threshold_minutes: 15,
-    working_days: '1,2,3,4,5'
+    working_days: '1,2,3,4,5',
+    min_working_hours: 9.0
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,7 +32,8 @@ const TenantSettings = () => {
           office_start_time: data.office_start_time || '09:00:00',
           office_end_time: data.office_end_time || '18:00:00',
           late_threshold_minutes: data.late_threshold_minutes ?? 15,
-          working_days: data.working_days || '1,2,3,4,5'
+          working_days: data.working_days || '1,2,3,4,5',
+          min_working_hours: data.min_working_hours ?? 9.0
         });
       }
     } catch (err) {
@@ -48,12 +50,12 @@ const TenantSettings = () => {
     setSaving(true);
     setMessage(null);
     
-    // Prepare data in the exact format backend expects
     const payload = {
       office_start_time: settings.office_start_time,
       office_end_time: settings.office_end_time,
       late_threshold_minutes: Number(settings.late_threshold_minutes),
-      working_days: settings.working_days
+      working_days: settings.working_days,
+      min_working_hours: Number(settings.min_working_hours)
     };
     
     console.log("Sending payload to backend:", payload);
@@ -62,7 +64,6 @@ const TenantSettings = () => {
       await tenantApi.updateSettings(payload);
       setMessage({ type: 'success', text: 'Organization settings saved successfully!' });
       setTimeout(() => setMessage(null), 3000);
-      // Refetch to confirm changes
       await fetchSettings();
     } catch (err) {
       console.error('Failed to save settings:', err);
@@ -82,10 +83,17 @@ const TenantSettings = () => {
   // Format time with seconds for storage
   const formatTimeWithSeconds = (timeStr) => {
     if (!timeStr) return '09:00:00';
-    // If already has seconds, return as is
     if (timeStr.length === 8) return timeStr;
-    // Add seconds
     return `${timeStr}:00`;
+  };
+
+  // Get working days display
+  const getWorkingDaysDisplay = () => {
+    const dayMap = {
+      1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun'
+    };
+    const days = settings.working_days.split(',').map(d => d.trim());
+    return days.map(d => dayMap[d]).join(', ');
   };
 
   if (loading) {
@@ -99,7 +107,7 @@ const TenantSettings = () => {
         bgColor="rgba(168,85,247,0.15)"
       >
         <div style={{ maxWidth: '560px', margin: '0 auto' }}>
-          <div style={{ background: 'var(--bg2)', borderRadius: '16px', height: '400px', animation: 'pulse 1.5s ease-in-out infinite' }}></div>
+          <div style={{ background: 'var(--bg2)', borderRadius: '16px', height: '500px', animation: 'pulse 1.5s ease-in-out infinite' }}></div>
         </div>
         <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }`}</style>
       </DashboardLayout>
@@ -120,6 +128,13 @@ const TenantSettings = () => {
         @keyframes slideIn {
           from { transform: translateX(100%); opacity: 0; }
           to { transform: translateX(0); opacity: 1; }
+        }
+        .info-box {
+          background: rgba(168,85,247,0.05);
+          border: 1px solid rgba(168,85,247,0.15);
+          border-radius: 12px;
+          padding: 1rem;
+          margin-top: 1rem;
         }
       `}</style>
 
@@ -152,6 +167,7 @@ const TenantSettings = () => {
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Office Start Time */}
           <div className="form-group">
             <label className="form-label">
               <Clock size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
@@ -171,6 +187,7 @@ const TenantSettings = () => {
             </p>
           </div>
 
+          {/* Office End Time */}
           <div className="form-group">
             <label className="form-label">
               <Clock size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
@@ -190,6 +207,7 @@ const TenantSettings = () => {
             </p>
           </div>
 
+          {/* Late Threshold */}
           <div className="form-group">
             <label className="form-label">
               <AlertTriangle size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
@@ -211,6 +229,30 @@ const TenantSettings = () => {
             </p>
           </div>
 
+          {/* Minimum Working Hours - NEW */}
+          <div className="form-group">
+            <label className="form-label">
+              <Briefcase size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
+              Minimum Working Hours (per day)
+            </label>
+            <input
+              className="form-input"
+              type="number"
+              min="0.5"
+              max="24"
+              step="0.5"
+              value={settings.min_working_hours}
+              onChange={(e) => setSettings({ 
+                ...settings, 
+                min_working_hours: parseFloat(e.target.value) 
+              })}
+            />
+            <p style={{ fontSize: '0.7rem', color: 'var(--text3)', marginTop: '4px' }}>
+              Employees must work at least this many hours to be marked as compliant
+            </p>
+          </div>
+
+          {/* Working Days */}
           <div className="form-group">
             <label className="form-label">
               <Calendar size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
@@ -223,30 +265,37 @@ const TenantSettings = () => {
               onChange={(e) => setSettings({ ...settings, working_days: e.target.value })}
             />
             <p style={{ fontSize: '0.7rem', color: 'var(--text3)', marginTop: '4px' }}>
-              1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun
+              1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun<br />
+              Current: {getWorkingDaysDisplay()}
             </p>
           </div>
         </div>
 
-        {/* Preview */}
-        <div style={{
-          marginTop: '1.5rem',
-          padding: '1rem',
-          background: 'rgba(168,85,247,0.05)',
-          border: '1px solid rgba(168,85,247,0.15)',
-          borderRadius: '10px',
-          fontSize: '0.8rem',
-          color: 'var(--text2)'
-        }}>
-          <div style={{ fontWeight: 500, marginBottom: '0.5rem', color: 'var(--text)' }}>Current Configuration</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+        {/* Preview Section */}
+        <div className="info-box">
+          <div style={{ fontWeight: 500, marginBottom: '0.75rem', color: 'var(--text)', fontSize: '0.85rem' }}>
+            Current Configuration Preview
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.8rem' }}>
             <div>🕘 Start: <strong>{settings.office_start_time?.slice(0, 5)}</strong></div>
             <div>🕕 End: <strong>{settings.office_end_time?.slice(0, 5)}</strong></div>
             <div>⚠️ Late after: <strong>{settings.late_threshold_minutes} min</strong></div>
-            <div>📅 Work days: <strong>{settings.working_days}</strong></div>
+            <div>⏱️ Min hours: <strong>{settings.min_working_hours} hours</strong></div>
+            <div>📅 Work days: <strong>{getWorkingDaysDisplay()}</strong></div>
+          </div>
+          <div style={{ 
+            marginTop: '0.75rem', 
+            paddingTop: '0.75rem', 
+            borderTop: '1px solid rgba(168,85,247,0.15)',
+            fontSize: '0.7rem',
+            color: 'var(--text3)'
+          }}>
+            <AlertCircle size={12} style={{ display: 'inline', marginRight: '4px' }} />
+            These rules apply to attendance calculations across all departments
           </div>
         </div>
 
+        {/* Save Button */}
         <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
           <button
             className="btn btn-teal"

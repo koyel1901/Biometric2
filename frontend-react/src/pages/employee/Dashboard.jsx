@@ -2,9 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import { TrendChart } from '../../components/Charts';
-import { employeeApi } from '../../services/api';
+import { employeeApi, publicApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 const Dashboard = () => {
+  const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState({
     check_in: null,
     check_out: null,
@@ -15,9 +17,12 @@ const Dashboard = () => {
     check_out: null,
     status: 'absent',
     hours_worked: 0,
+    met_min_hours: false,
+    is_late: false,
   });
   const [monthlyStats, setMonthlyStats] = useState({
     present_days: 0,
+    days_met_min_hours: 0,
     total_hours: 0,
     attendance_percentage: 0,
     total_days_in_month: 30,
@@ -27,6 +32,7 @@ const Dashboard = () => {
     on_time_days: 0,
     overtime_hours: 0,
     average_hours_per_day: 0,
+    compliance_rate: 0,
   });
   const [upcomingHoliday, setUpcomingHoliday] = useState(null);
   const [pendingLeaves, setPendingLeaves] = useState(0);
@@ -36,6 +42,7 @@ const Dashboard = () => {
     approved: 0,
     rejected: 0,
   });
+  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -43,16 +50,43 @@ const Dashboard = () => {
     fetchAllData();
   }, []);
 
+  const fetchSettings = async () => {
+    try {
+      const tenantId = user?.tenant_id;
+      if (!tenantId) {
+        console.warn("No tenant_id found, using default settings");
+        setSettings({
+          office_start_time: "09:00:00",
+          office_end_time: "18:00:00",
+          late_threshold_minutes: 15,
+          min_working_hours: 9.0,
+        });
+        return;
+      }
+      
+      const data = await publicApi.getTenantSettings(tenantId);
+      setSettings(data);
+    } catch (err) {
+      console.error("Failed to fetch settings:", err);
+      setSettings({
+        office_start_time: "09:00:00",
+        office_end_time: "18:00:00",
+        late_threshold_minutes: 15,
+        min_working_hours: 9.0,
+      });
+    }
+  };
+
   const fetchAllData = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Get current month and year
       const now = new Date();
       const currentMonth = now.getMonth() + 1;
       const currentYear = now.getFullYear();
 
-      // Fetch all data in parallel
+      await fetchSettings();
+
       const [dashboard, today, monthly, upcoming, leaveStatsData, leaveBalance] = await Promise.all([
         employeeApi.getDashboard(),
         employeeApi.getTodayAttendance(),
@@ -65,14 +99,19 @@ const Dashboard = () => {
       console.log('Dashboard Data:', dashboard);
       console.log('Today Attendance:', today);
       console.log('Monthly Stats:', monthly);
-      console.log('Upcoming Holiday:', upcoming);
-      console.log('Leave Stats:', leaveStatsData);
-      console.log('Leave Balance:', leaveBalance);
 
       setDashboardData(dashboard || { check_in: null, check_out: null, present_days: 0 });
-      setTodayAttendance(today || { check_in: null, check_out: null, status: 'absent', hours_worked: 0 });
+      setTodayAttendance(today || { 
+        check_in: null, 
+        check_out: null, 
+        status: 'absent', 
+        hours_worked: 0,
+        met_min_hours: false,
+        is_late: false
+      });
       setMonthlyStats(monthly || {
         present_days: 0,
+        days_met_min_hours: 0,
         total_hours: 0,
         attendance_percentage: 0,
         total_days_in_month: 30,
@@ -82,6 +121,7 @@ const Dashboard = () => {
         on_time_days: 0,
         overtime_hours: 0,
         average_hours_per_day: 0,
+        compliance_rate: 0,
       });
       setUpcomingHoliday(upcoming || null);
       setLeaveStats(leaveStatsData || { total: 0, pending: 0, approved: 0, rejected: 0 });
@@ -104,14 +144,10 @@ const Dashboard = () => {
     }
   };
 
-  // Calculate weekly attendance trend from monthly data
   const getWeeklyTrend = () => {
-    // This is a placeholder - you can enhance this with real weekly data from API
     const presentDays = monthlyStats.present_days || 0;
     const workingDays = monthlyStats.estimated_working_days || 22;
     const percentage = (presentDays / workingDays) * 100;
-    
-    // Return weekly estimates based on monthly percentage
     return [percentage * 0.8, percentage * 0.9, percentage * 1.0, percentage * 0.95];
   };
 
@@ -163,6 +199,26 @@ const Dashboard = () => {
       color="#f59e0b" 
       bgColor="rgba(245,158,11,0.15)"
     >
+      {/* Settings Banner */}
+      {settings && (
+        <div style={{ 
+          marginBottom: '1rem', 
+          padding: '0.5rem 1rem', 
+          background: 'rgba(245,158,11,0.1)', 
+          borderRadius: '10px',
+          fontSize: '0.7rem',
+          textAlign: 'center',
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '1.5rem',
+          flexWrap: 'wrap'
+        }}>
+          <span>🕘 Office Hours: {settings.office_start_time?.slice(0,5)} - {settings.office_end_time?.slice(0,5)}</span>
+          <span>⚠️ Late after: +{settings.late_threshold_minutes} min</span>
+          <span>⏱️ Min hours required: {settings.min_working_hours}h</span>
+        </div>
+      )}
+
       {/* Top Presence Card */}
       <div className="today-card">
         <div className="today-item">
@@ -172,19 +228,29 @@ const Dashboard = () => {
         <div className="today-item">
           <div className="today-val">{formatTime(todayAttendance.check_in)}</div>
           <div className="today-lbl">Check-in</div>
+          {todayAttendance.is_late && todayAttendance.check_in && (
+            <div className="today-lbl" style={{ color: 'var(--amber)', fontSize: '0.6rem' }}>(Late)</div>
+          )}
         </div>
         <div className="today-item">
           <div className="today-val">{formatTime(todayAttendance.check_out)}</div>
           <div className="today-lbl">Check-out</div>
         </div>
         <div className="today-item">
-          <div className="today-val">{todayAttendance.hours_worked > 0 ? `${todayAttendance.hours_worked}h` : '--'}</div>
-          <div className="today-lbl">Working Hours</div>
+          <div className="today-val" style={{ color: todayAttendance.met_min_hours ? 'var(--green)' : 'var(--amber)' }}>
+            {todayAttendance.hours_worked > 0 ? `${todayAttendance.hours_worked}h` : '--'}
+          </div>
+          <div className="today-lbl">Valid Hours</div>
+          {todayAttendance.check_in && (
+            <div className="today-lbl" style={{ fontSize: '0.6rem' }}>
+              {todayAttendance.met_min_hours ? '✓ Met requirement' : '✗ Below minimum'}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Main Stats Row */}
-      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
         <div className="stat-card">
           <div className="stat-label">Monthly Attendance</div>
           <div className="stat-value" style={{ color: 'var(--teal)', fontSize: '1.4rem' }}>
@@ -194,6 +260,17 @@ const Dashboard = () => {
             {monthlyStats.present_days || 0}/{monthlyStats.estimated_working_days || 22} days
           </div>
         </div>
+        
+        <div className="stat-card">
+          <div className="stat-label">Days Met Min Hours</div>
+          <div className="stat-value" style={{ color: 'var(--purple)', fontSize: '1.4rem' }}>
+            {monthlyStats.days_met_min_hours || 0}
+          </div>
+          <div className="stat-sub">
+            {monthlyStats.compliance_rate || 0}% compliance rate
+          </div>
+        </div>
+        
         <div className="stat-card">
           <div className="stat-label">Present Days</div>
           <div className="stat-value" style={{ color: 'var(--green)', fontSize: '1.4rem' }}>
@@ -201,16 +278,18 @@ const Dashboard = () => {
           </div>
           <div className="stat-sub">This month</div>
         </div>
+        
         <div className="stat-card">
-          <div className="stat-label">Total Hours</div>
+          <div className="stat-label">Total Valid Hours</div>
           <div className="stat-value" style={{ color: 'var(--amber)', fontSize: '1.4rem' }}>
             {monthlyStats.total_hours || 0}h
           </div>
-          <div className="stat-sub">This month</div>
+          <div className="stat-sub">Within office hours</div>
         </div>
+        
         <div className="stat-card">
           <div className="stat-label">Pending Leaves</div>
-          <div className="stat-value" style={{ color: 'var(--purple)', fontSize: '1.4rem' }}>
+          <div className="stat-value" style={{ color: 'var(--blue)', fontSize: '1.4rem' }}>
             {pendingLeaves}
           </div>
           <div className="stat-sub">{leaveStats.total || 0} total requests</div>
@@ -218,7 +297,7 @@ const Dashboard = () => {
       </div>
 
       {/* Additional Stats Row */}
-      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginTop: '0' }}>
+      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginTop: '0' }}>
         <div className="stat-card">
           <div className="stat-label">Late Days</div>
           <div className="stat-value" style={{ color: 'var(--amber)', fontSize: '1.2rem' }}>
@@ -232,9 +311,15 @@ const Dashboard = () => {
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Overtime</div>
+          <div className="stat-label">Average Hours/Day</div>
           <div className="stat-value" style={{ color: 'var(--teal)', fontSize: '1.2rem' }}>
-            {monthlyStats.overtime_hours || 0}h
+            {monthlyStats.average_hours_per_day || 0}h
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Absent Days</div>
+          <div className="stat-value" style={{ color: 'var(--red)', fontSize: '1.2rem' }}>
+            {monthlyStats.absent_days || 0}
           </div>
         </div>
       </div>
@@ -252,6 +337,7 @@ const Dashboard = () => {
             Based on {monthlyStats.present_days || 0} present days out of {monthlyStats.estimated_working_days || 22} working days
           </div>
         </div>
+        
         <div className="card-box">
           <h4>Quick info</h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
@@ -272,13 +358,30 @@ const Dashboard = () => {
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="stat-label" style={{ margin: 0 }}>Average hours/day</span>
-              <span style={{ fontSize: '0.85rem', fontFamily: 'var(--mono)' }}>
-                {monthlyStats.average_hours_per_day || 0}h
+              <span className="stat-label" style={{ margin: 0 }}>Today's valid hours</span>
+              <span style={{ fontSize: '0.85rem', fontFamily: 'var(--mono)', color: todayAttendance.met_min_hours ? 'var(--green)' : 'var(--amber)' }}>
+                {todayAttendance.hours_worked || 0}h
+                {todayAttendance.check_in && !todayAttendance.met_min_hours && (
+                  <span style={{ fontSize: '0.7rem', marginLeft: '4px' }}>(below {settings?.min_working_hours}h)</span>
+                )}
               </span>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Info Card */}
+      <div className="card-box" style={{ marginTop: '1rem', background: 'rgba(245,158,11,0.03)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <span style={{ fontSize: '1.2rem' }}>ℹ️</span>
+          <span style={{ fontWeight: 500, fontSize: '0.85rem' }}>About Working Hours Calculation</span>
+        </div>
+        <p style={{ fontSize: '0.7rem', color: 'var(--text3)', lineHeight: 1.5 }}>
+          Working hours are calculated based on actual time spent within office hours 
+          ({settings?.office_start_time?.slice(0,5)} - {settings?.office_end_time?.slice(0,5)}). 
+          Time before office start or after office end is not counted. 
+          You need at least <strong>{settings?.min_working_hours || 9} hours</strong> of valid working hours per day to meet the requirement.
+        </p>
       </div>
     </DashboardLayout>
   );

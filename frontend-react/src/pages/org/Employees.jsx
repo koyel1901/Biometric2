@@ -7,8 +7,11 @@ import ConfirmationModal from '../../components/ConfirmationModal';
 import { orgApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Calendar } from 'lucide-react';
+import PersistentToast from '../../components/PersistentToast';
+
 
 function Toast({ message, type = 'success', onClose }) {
+  const [toast, setToast] = useState(null); 
   useEffect(() => {
     const t = setTimeout(onClose, 3500);
     return () => clearTimeout(t);
@@ -477,33 +480,49 @@ const Employees = () => {
     }
   };
 
-  const handleAdd = async (e) => {
-    e.preventDefault();
-    setFormErr('');
-    if (!form.name.trim()) { setFormErr('Full name is required.'); return; }
-    setSubmitting(true);
-    try {
-      const payload = {
-        name: form.name.trim(),
-        employee_code: form.employee_code.trim() || undefined,
-        password: form.password.trim() || undefined,
-        finger_id: form.finger_id ? parseInt(form.finger_id, 10) : undefined,
-      };
-      const res = await orgApi.createEmployee(payload);
-      const creds = res?.credentials;
-      setToast({
-        message: `${creds?.name} added! Code: ${creds?.employee_code}, FP: ${creds?.finger_id}`,
-        type: 'success',
-      });
-      setForm({ name: '', employee_code: '', password: '', finger_id: '' });
-      setView('list');
-      fetchEmployees();
-    } catch (err) {
-      setFormErr(err?.response?.data?.detail || 'Failed to add employee.');
-    } finally {
-      setSubmitting(false);
+
+
+const handleAdd = async (e) => {
+  e.preventDefault();
+  setFormErr('');
+  if (!form.name.trim()) { setFormErr('Full name is required.'); return; }
+  setSubmitting(true);
+  try {
+    const payload = {
+      name: form.name.trim(),
+      employee_code: form.employee_code.trim() || undefined,
+      password: form.password.trim() || undefined,
+      finger_id: form.finger_id ? parseInt(form.finger_id, 10) : undefined,
+    };
+    const res = await orgApi.createEmployee(payload);
+    const creds = res?.credentials;
+    
+    // Build the toast message with password
+    let toastMessage = `✅ ${creds?.name} added successfully!\n`;
+    toastMessage += `📋 Employee Code: ${creds?.employee_code}\n`;
+    if (creds?.finger_id) {
+      toastMessage += `🖐️ Fingerprint ID: ${creds?.finger_id}\n`;
     }
-  };
+    if (creds?.password) {
+      toastMessage += `🔑 Password: ${creds?.password}\n`;
+    }
+    
+    // Set toast (will NOT auto-dismiss)
+    setToast({ 
+      message: toastMessage, 
+      type: 'success'
+    });
+    
+    setForm({ name: '', employee_code: '', password: '', finger_id: '' });
+    setView('list');
+    fetchEmployees();
+  } catch (err) {
+    setFormErr(err?.response?.data?.detail || 'Failed to add employee.');
+  } finally {
+    setSubmitting(false);
+  }
+};
+
 
   const handleUpdateSuccess = () => {
     setToast({ message: 'Employee updated successfully!', type: 'success' });
@@ -521,6 +540,11 @@ const Employees = () => {
     setSelectedEmployee(emp);
     setShowDetailModal(true);
   };
+
+  const closeToast = () => {
+    setToast(null);
+  };
+  
 
   const openEditModal = (emp) => {
     setSelectedEmployee(emp);
@@ -550,7 +574,14 @@ const Employees = () => {
         .employee-card:hover { transform: translateY(-2px); border-color: var(--teal); }
       `}</style>
 
-      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+      {/* Toast */}
+    {toast && (
+      <PersistentToast 
+        message={toast.message} 
+        type={toast.type} 
+        onClose={closeToast}
+      />
+    )}
 
       <ConfirmationModal
         isOpen={showDeactivateModal}

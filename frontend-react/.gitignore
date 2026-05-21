@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+code.py
+combined_project_code.txt
+combined_project_code_*.txt
+*.pyc
+__pycache__/
+../app/__pycache__/

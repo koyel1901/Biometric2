@@ -1,9 +1,10 @@
 // src/pages/tenant/OrgAdmins.jsx
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Search, RefreshCw, AlertCircle, Mail, Building2, Shield, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Search, RefreshCw, AlertCircle, Mail, Building2, Shield, Trash2, CheckCircle, XCircle, Copy } from 'lucide-react';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import Badge from '../../components/Badge';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import PersistentToast from '../../components/PersistentToast';
 import { tenantApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -17,8 +18,8 @@ const OrgAdmins = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({ name: '', email: '', dept_id: '' });
   const [submitting, setSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [generatedPassword, setGeneratedPassword] = useState('');
+  const [toast, setToast] = useState(null);
+  const [lastCreatedCredentials, setLastCreatedCredentials] = useState(null);
   
   // Modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -48,11 +49,24 @@ const OrgAdmins = () => {
     }
   };
 
+  const closeToast = () => {
+    setToast(null);
+    setLastCreatedCredentials(null);
+  };
+
+  const copyToClipboard = (text, fieldName) => {
+    navigator.clipboard.writeText(text);
+    setToast({ 
+      message: `📋 ${fieldName} copied to clipboard!`, 
+      type: 'info', 
+      persistent: false 
+    });
+  };
+
   const handleCreateAdmin = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setError('');
-    setGeneratedPassword('');
     
     if (!formData.name.trim()) {
       setError('Name is required');
@@ -77,15 +91,25 @@ const OrgAdmins = () => {
         dept_id: parseInt(formData.dept_id),
       });
       
-      setGeneratedPassword(response.credentials?.password);
-      setSuccessMessage(`Org Admin created! Password: ${response.credentials?.password}`);
+      const credentials = response.credentials;
+      setLastCreatedCredentials(credentials);
+      
+      // Build persistent toast message
+      let toastMessage = `✅ Org Admin created successfully!\n\n`;
+      toastMessage += `👤 Name: ${credentials.name}\n`;
+      toastMessage += `📧 Email: ${credentials.email}\n`;
+      toastMessage += `🔑 Password: ${credentials.password}\n\n`;
+      toastMessage += `⚠️ Please save these credentials. They will not be shown again.`;
+      
+      setToast({ 
+        message: toastMessage, 
+        type: 'success',
+        persistent: true
+      });
+      
       setFormData({ name: '', email: '', dept_id: '' });
       await fetchData();
       
-      setTimeout(() => {
-        setSuccessMessage('');
-        setGeneratedPassword('');
-      }, 8000);
     } catch (err) {
       setError(err.message || 'Failed to create org admin');
     } finally {
@@ -97,11 +121,13 @@ const OrgAdmins = () => {
     try {
       await tenantApi.updateOrgAdmin(adminId, { is_active: !currentStatus });
       await fetchData();
-      setSuccessMessage(`Org admin ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
-      setTimeout(() => setSuccessMessage(''), 3000);
+      setToast({ 
+        message: `Org admin ${!currentStatus ? 'activated' : 'deactivated'} successfully`, 
+        type: 'success',
+        persistent: false
+      });
     } catch (err) {
       setError(err.message || 'Failed to update status');
-      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -116,16 +142,71 @@ const OrgAdmins = () => {
     try {
       await tenantApi.deleteOrgAdmin(deletingAdmin.id);
       await fetchData();
-      setSuccessMessage('Org admin deactivated successfully');
+      setToast({ 
+        message: 'Org admin deactivated successfully', 
+        type: 'success',
+        persistent: false
+      });
       setShowDeleteModal(false);
       setDeletingAdmin(null);
-      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       setError(err.message || 'Failed to delete org admin');
-      setTimeout(() => setError(''), 3000);
     } finally {
       setDeleting(false);
     }
+  };
+
+  // Custom render function for toast content with copy buttons
+  const renderToastContent = (message, type) => {
+    if (type === 'success' && lastCreatedCredentials) {
+      return (
+        <div>
+          <div style={{ fontWeight: 600, marginBottom: '12px', fontSize: '1rem' }}>
+            ✅ Org Admin Created Successfully!
+          </div>
+          <div style={{ marginBottom: '8px' }}>
+            <div style={{ fontSize: '0.8rem', marginBottom: '4px' }}>
+              👤 Name: <strong>{lastCreatedCredentials.name}</strong>
+            </div>
+            <div style={{ fontSize: '0.8rem', marginBottom: '4px' }}>
+              📧 Email: <strong>{lastCreatedCredentials.email}</strong>
+              <button 
+                onClick={() => copyToClipboard(lastCreatedCredentials.email, 'Email')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', marginLeft: '8px', color: 'white', verticalAlign: 'middle' }}
+              >
+                <Copy size={12} />
+              </button>
+            </div>
+            <div style={{ 
+              fontSize: '0.8rem', 
+              marginTop: '8px', 
+              padding: '8px', 
+              background: 'rgba(0,0,0,0.2)', 
+              borderRadius: '6px',
+              fontFamily: 'monospace'
+            }}>
+              🔑 Password: <strong style={{ color: '#fbbf24' }}>{lastCreatedCredentials.password}</strong>
+              <button 
+                onClick={() => copyToClipboard(lastCreatedCredentials.password, 'Password')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', marginLeft: '8px', color: 'white', verticalAlign: 'middle' }}
+              >
+                <Copy size={12} />
+              </button>
+            </div>
+          </div>
+          <div style={{ 
+            fontSize: '0.7rem', 
+            marginTop: '10px', 
+            opacity: 0.8, 
+            borderTop: '1px solid rgba(255,255,255,0.2)', 
+            paddingTop: '8px' 
+          }}>
+            ⚠️ Please save these credentials. They will not be shown again.
+          </div>
+        </div>
+      );
+    }
+    return message;
   };
 
   const filteredAdmins = orgAdmins.filter(admin =>
@@ -172,23 +253,21 @@ const OrgAdmins = () => {
           from { transform: translateX(100%); opacity: 0; }
           to { transform: translateX(0); opacity: 1; }
         }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
       `}</style>
 
-      {/* Success Message Toast */}
-      {successMessage && (
-        <div style={{
-          position: 'fixed', bottom: '24px', right: '24px',
-          background: generatedPassword ? 'rgba(168,85,247,0.95)' : 'rgba(34,197,94,0.95)',
-          color: 'white',
-          padding: '12px 20px',
-          borderRadius: '8px',
-          zIndex: 1000,
-          animation: 'slideIn 0.3s ease',
-          maxWidth: '400px',
-          wordBreak: 'break-word'
-        }}>
-          {successMessage}
-        </div>
+      {/* Persistent Toast */}
+      {toast && (
+        <PersistentToast 
+          message={toast.message}
+          type={toast.type}
+          persistent={toast.persistent}
+          onClose={closeToast}
+          renderContent={renderToastContent}
+        />
       )}
       
       {/* Error Message */}
@@ -367,7 +446,7 @@ const OrgAdmins = () => {
             <h4 style={{ marginBottom: '0.5rem' }}>Add Organization Administrator</h4>
             <p style={{ fontSize: '0.8rem', color: 'var(--text3)', marginBottom: '1.5rem' }}>
               Org admins can manage employees, view attendance, and approve leaves for their department.
-              A strong password will be auto-generated and shown after creation.
+              A strong password will be auto-generated and shown in a persistent popup after creation.
             </p>
             
             <form onSubmit={handleCreateAdmin}>

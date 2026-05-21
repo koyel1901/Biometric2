@@ -1,6 +1,7 @@
 // src/components/Sidebar.jsx
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
+import { Key, Lock } from 'lucide-react';
 import { 
   BarChart3, 
   Grid2X2, 
@@ -35,6 +36,7 @@ const Sidebar = ({ role, label, iconColor }) => {
           { icon: <Calendar size={18} />, label: 'Holidays', path: '/super/holidays' },
           { icon: <Cpu size={18} />, label: 'Devices', path: '/super/devices' },
           { icon: <Send size={18} />, label: 'Device Commands', path: '/super/device-commands' },
+          { icon: <Key size={18} />, label: 'Change API Key', path: '/super/change-api-key' },
           { icon: <Settings size={18} />, label: 'Settings', path: '/super/settings' },
         ];
       case 'orgadmin':
@@ -47,8 +49,8 @@ const Sidebar = ({ role, label, iconColor }) => {
           { icon: <BarChart3 size={18} />, label: 'Attendance Report', path: '/org/report-att' },
           { icon: <FileText size={18} />, label: 'Leave Report', path: '/org/report-leave' },
           { icon: <Cpu size={18} />, label: 'Devices', path: '/org/devices' },
-          // ❌ ACTIVITY LOG REMOVED
-          // ❌ SETTINGS REMOVED - Org Admins cannot access settings
+          // ✅ ADD THIS - Change Password for Org Admin
+          { icon: <Lock size={18} />, label: 'Change Password', path: '/org/change-password' },
         ];
       case 'user':
         return [

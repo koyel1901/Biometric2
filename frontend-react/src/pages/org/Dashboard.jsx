@@ -15,7 +15,8 @@ import {
   RefreshCw,
   Briefcase,
   Gift,
-  ChevronRight
+  ChevronRight,
+  User
 } from 'lucide-react';
 
 const OrgDash = () => {
@@ -30,7 +31,6 @@ const OrgDash = () => {
 
   useEffect(() => {
     fetchDashboard();
-    // Auto-refresh every 60 seconds
     const interval = setInterval(() => {
       fetchDashboard();
     }, 60000);
@@ -97,6 +97,13 @@ const OrgDash = () => {
     return `${Math.floor(diff / 3600)} hours ago`;
   };
 
+  // Get admin name from user context
+  const getAdminName = () => {
+    if (user?.name) return user.name;
+    if (dashboardData?.admin_name) return dashboardData.admin_name;
+    return "Admin";
+  };
+
   if (loading && !dashboardData) {
     return (
       <DashboardLayout title="Dashboard" role="orgadmin" label="Department Admin" abbr="DA" color="#00d4aa" bgColor="rgba(0,212,170,0.15)">
@@ -112,6 +119,7 @@ const OrgDash = () => {
 
   const stats = dashboardData || {
     department: user?.department_name || 'Department',
+    admin_name: user?.name || 'Admin',
     employees: { total: 0, active: 0, enrolled: 0 },
     attendance_today: { present: 0, absent: 0, late: 0, on_time: 0 },
     pending_leaves: 0,
@@ -120,6 +128,8 @@ const OrgDash = () => {
   const attendancePct = stats.employees.total > 0
     ? Math.round((stats.attendance_today.present / stats.employees.total) * 100)
     : 0;
+
+  const adminName = getAdminName();
 
   return (
     <DashboardLayout title="Dashboard" role="orgadmin" label="Department Admin" abbr="DA" color="#00d4aa" bgColor="rgba(0,212,170,0.15)">
@@ -147,8 +157,23 @@ const OrgDash = () => {
       <div className="welcome-section" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 600, marginBottom: '0.25rem' }}>Welcome back, {stats.department}</h2>
-            <p style={{ color: 'var(--text3)', fontSize: '0.85rem' }}>Here's your department's attendance overview</p>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 600, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                background: 'rgba(0,212,170,0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <User size={20} style={{ color: '#00d4aa' }} />
+              </div>
+              Welcome back, {adminName}!
+            </h2>
+            <p style={{ color: 'var(--text3)', fontSize: '0.85rem' }}>
+              Managing <strong>{stats.department || 'your department'}</strong> · Here's your department's attendance overview
+            </p>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div className="date-badge" style={{ background: 'var(--bg4)', padding: '0.5rem 1rem', borderRadius: '10px', fontFamily: 'var(--mono)', fontSize: '0.75rem', marginBottom: '0.25rem' }}>

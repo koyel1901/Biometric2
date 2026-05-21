@@ -1,6 +1,6 @@
 
 // src/services/api.js
-const API_BASE_URL = 'https://api.attendance.gridsphere.in';
+const API_BASE_URL = 'http://localhost:8000';
 
 // Helper to get auth token
 const getToken = () => localStorage.getItem('access_token');
@@ -92,6 +92,10 @@ export const employeeApi = {
 // ==================== ORGANIZATION ADMIN APIs ====================
 export const orgApi = {
   getDashboard: () => apiRequest('/api/org-admin/dashboard'),
+  changePassword: (data) => apiRequest('/api/auth/change-password', { 
+    method: 'POST', 
+    body: JSON.stringify(data) 
+  }),
   getEmployees: () => apiRequest('/api/org-admin/employees'),
   getAvailableSlots: () => apiRequest('/api/org-admin/employees/available-finger-slots'),
   createEmployee: (data) => apiRequest('/api/org-admin/employees', { method: 'POST', body: JSON.stringify(data) }),
@@ -119,6 +123,10 @@ export const orgApi = {
 // ==================== TENANT ADMIN APIs ====================
 export const tenantApi = {
   getDashboard: () => apiRequest('/api/tenant/dashboard'),
+  changeApiKey: (apiKey) => apiRequest('/api/tenant/change-api-key', { 
+    method: 'POST', 
+    body: JSON.stringify({ api_key: apiKey }) 
+  }),
   getRecentAttendance: () => apiRequest('/api/tenant/attendance/recent'),
   getAttendanceStats: () => apiRequest('/api/tenant/attendance/stats'),
   getAttendanceByDate: (date, deptId) => {
@@ -279,4 +287,33 @@ export default {
   tenant: tenantApi,
   superAdmin: superAdminApi,
   auth: authApi,
+
+};
+
+
+// PUBLIC API - No authentication required
+export const publicApi = {
+  getTenantSettings: (tenantId) => {
+    return fetch(`${API_BASE_URL}/api/tenant/settings/public?tenant_id=${tenantId}`)
+      .then(async (response) => {
+        if (!response.ok) {
+          console.warn(`Failed to fetch settings for tenant ${tenantId}, using defaults`);
+          return {
+            office_start_time: "09:00:00",
+            office_end_time: "18:00:00",
+            late_threshold_minutes: 15,
+            min_working_hours: 9.0,
+            working_days: "1,2,3,4,5"
+          };
+        }
+        return response.json();
+      })
+      .catch(() => ({
+        office_start_time: "09:00:00",
+        office_end_time: "18:00:00",
+        late_threshold_minutes: 15,
+        min_working_hours: 9.0,
+        working_days: "1,2,3,4,5"
+      }));
+  }
 };
