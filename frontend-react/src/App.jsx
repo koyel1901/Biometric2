@@ -7,6 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Gateway from './pages/Gateway';
 import Login from './pages/Login';
 import ChangeApiKey from './pages/tenant/ChangeApiKey';
+import OrgTracker from './pages/org/Tracker';
 
 // Tenant Imports
 import TenantDash from './pages/tenant/Dashboard';
@@ -198,6 +199,14 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+                      <Route 
+            path="/org/tracker" 
+            element={
+              <ProtectedRoute allowedRoles={['org_admin', 'department_admin']}>
+                <OrgTracker />
+              </ProtectedRoute>
+            } 
+          />
             <Route 
               path="/org/report-leave" 
               element={

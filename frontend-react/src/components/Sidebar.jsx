@@ -1,7 +1,7 @@
 // src/components/Sidebar.jsx
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Key, Lock, LogOut } from 'lucide-react';
+import { Key, Lock, LogOut, Monitor } from 'lucide-react';
 import { 
   BarChart3, 
   Calendar, 
@@ -50,6 +50,7 @@ const Sidebar = ({ role, label, iconColor }) => {
           { icon: <BarChart3 size={18} />, label: 'Attendance Report', path: '/org/report-att' },
           { icon: <FileText size={18} />, label: 'Leave Report', path: '/org/report-leave' },
           { icon: <Cpu size={18} />, label: 'Devices', path: '/org/devices' },
+          { icon: <Monitor size={18} />, label: 'Activity Tracker', path: '/org/tracker' },
           { icon: <Lock size={18} />, label: 'Change Password', path: '/org/change-password' },
         ];
       case 'user':
