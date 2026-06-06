@@ -1,12 +1,9 @@
 // src/services/trackerApi.js
 
 // ============================================
-// IMPORTANT: Change this based on your environment
+// PRODUCTION API URL - Using attendance API domain
 // ============================================
-// For LOCAL development (backend running on your machine):
-const API_BASE_URL = 'http://localhost:8000';
-// For PRODUCTION (deployed backend):
-// const API_BASE_URL = 'https://api.track.gridsphere.in';
+const API_BASE_URL = 'https://api.attendance.gridsphere.in';
 
 const getToken = () => localStorage.getItem('access_token');
 const getApiKey = () => localStorage.getItem('api_key');
@@ -60,7 +57,7 @@ export const trackerApi = {
       email: response.email,
       employee_code: response.employee_code,
       department_name: response.department_name,
-      hasActiveSession: response.hasActiveSession,
+      hasActiveSession: response.hasActiveSession || false,
       sessionStart: response.sessionStart,
       totalWorkingHours: response.totalWorkingHours || 0,
       todayHours: response.todayHours || 0,
