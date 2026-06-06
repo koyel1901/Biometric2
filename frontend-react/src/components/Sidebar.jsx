@@ -1,13 +1,11 @@
 // src/components/Sidebar.jsx
 import React from 'react';
-import { NavLink, Link } from 'react-router-dom';
-import { Key, Lock } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
+import { Key, Lock, LogOut } from 'lucide-react';
 import { 
   BarChart3, 
-  Grid2X2, 
   Calendar, 
   Cpu, 
-  LogOut, 
   Activity, 
   Settings,
   ShieldCheck,
@@ -21,8 +19,11 @@ import {
   Send,
   Briefcase
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Sidebar = ({ role, label, iconColor }) => {
+  const { logout } = useAuth();
+
   const getNavItems = () => {
     switch (role) {
       case 'superadmin':
@@ -49,7 +50,6 @@ const Sidebar = ({ role, label, iconColor }) => {
           { icon: <BarChart3 size={18} />, label: 'Attendance Report', path: '/org/report-att' },
           { icon: <FileText size={18} />, label: 'Leave Report', path: '/org/report-leave' },
           { icon: <Cpu size={18} />, label: 'Devices', path: '/org/devices' },
-          // ✅ ADD THIS - Change Password for Org Admin
           { icon: <Lock size={18} />, label: 'Change Password', path: '/org/change-password' },
         ];
       case 'user':
@@ -93,10 +93,10 @@ const Sidebar = ({ role, label, iconColor }) => {
       </div>
 
       <div className="sb-signout-wrapper">
-        <Link to="/" className="sb-signout">
+        <button onClick={logout} className="sb-signout" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer' }}>
           <LogOut size={16} style={{ marginRight: '8px' }} />
           Sign Out
-        </Link>
+        </button>
       </div>
     </aside>
   );

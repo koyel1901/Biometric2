@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }) => {
           console.log('👤 User set:', userData);
         } else {
           console.warn('⚠️ Auth type is api_key but no API key found');
-          logout();
+          performLogout();
         }
       } else if (token) {
         try {
@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
           console.log('👤 User set from Bearer token:', userData);
         } catch (e) {
           console.error('❌ Invalid token:', e);
-          logout();
+          performLogout();
         }
       } else {
         console.log('ℹ️ No auth credentials found');
@@ -77,6 +77,7 @@ export const AuthProvider = ({ children }) => {
     if (isApiKeyAuth) {
       // For API key auth, we don't store token
       localStorage.setItem('auth_type', 'api_key');
+      localStorage.setItem('user', JSON.stringify(userData));
       setAuthType('api_key');
       setUser(userData);
       console.log('✅ API Key auth user set:', userData);
@@ -84,29 +85,43 @@ export const AuthProvider = ({ children }) => {
     } else {
       localStorage.setItem('access_token', accessToken);
       localStorage.setItem('auth_type', 'bearer');
+      localStorage.setItem('user', JSON.stringify(userData));
       setToken(accessToken);
       setAuthType('bearer');
       setUser(userData);
       console.log('✅ Bearer token auth user set:', userData);
     }
-    
-    // Force a small delay to ensure state updates
-    setTimeout(() => {
-      console.log('🔍 Final user state after login:', userData);
-    }, 100);
   };
 
-  const logout = () => {
-    console.log('🔓 Logging out...');
+  const performLogout = () => {
+    console.log('🔓 Performing logout - clearing all localStorage...');
+    
+    // Clear ALL auth-related items from localStorage
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('api_key');
     localStorage.removeItem('auth_type');
     localStorage.removeItem('user');
+    
+    // Clear any other potential auth items
+    localStorage.removeItem('token');
+    localStorage.removeItem('userData');
+    localStorage.removeItem('user_role');
+    localStorage.removeItem('username');
+    localStorage.removeItem('password');
+    
+    // Reset state
     setToken(null);
     setAuthType(null);
     setUser(null);
-    console.log('✅ All auth data cleared');
+    
+    console.log('✅ All auth data cleared from localStorage');
+  };
+
+  const logout = () => {
+    performLogout();
+    // Force a hard redirect to completely reset the app state
+    window.location.href = '/';
   };
 
   const hasRole = (allowedRoles) => {

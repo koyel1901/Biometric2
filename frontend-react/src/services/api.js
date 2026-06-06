@@ -273,25 +273,6 @@ export const authApi = {
   createSuperAdmin: (data) => apiRequest('/api/auth/setup/super-admin', { method: 'POST', body: JSON.stringify(data) }),
 };
 
-// Backward compatibility
-export const attendanceAPI = employeeApi;
-export const profileAPI = employeeApi;
-export const dashboardAPI = employeeApi;
-export const leavesAPI = employeeApi;
-export const holidaysAPI = employeeApi;
-export const notificationsAPI = employeeApi;
-
-export default {
-  employee: employeeApi,
-  org: orgApi,
-  tenant: tenantApi,
-  superAdmin: superAdminApi,
-  auth: authApi,
-
-};
-
-
-// PUBLIC API - No authentication required
 export const publicApi = {
   getTenantSettings: (tenantId) => {
     return fetch(`${API_BASE_URL}/api/tenant/settings/public?tenant_id=${tenantId}`)
@@ -317,3 +298,27 @@ export const publicApi = {
       }));
   }
 };
+
+
+
+
+// Backward compatibility
+export const attendanceAPI = employeeApi;
+export const profileAPI = employeeApi;
+export const dashboardAPI = employeeApi;
+export const leavesAPI = employeeApi;
+export const holidaysAPI = employeeApi;
+export const notificationsAPI = employeeApi;
+
+export default {
+  employee: employeeApi,
+  org: orgApi,
+  tenant: tenantApi,
+  superAdmin: superAdminApi,
+  auth: authApi,
+  public:publicApi,
+
+};
+
+
+

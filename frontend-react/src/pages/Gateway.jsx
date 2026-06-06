@@ -1,10 +1,53 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { ShieldCheck, Moon, Sun, ArrowRight, Zap, Lock, Globe } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ShieldCheck, Moon, Sun, ArrowRight } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 const Gateway = () => {
   const { theme, toggleTheme } = useTheme();
+  const { user, loading, autoLoginInProgress } = useAuth();
+  const navigate = useNavigate();
+
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    if (!loading && !autoLoginInProgress && user) {
+      console.log('🔄 User already logged in, redirecting to dashboard...');
+      if (user.role === 'tenant_admin') {
+        navigate('/super/dashboard', { replace: true });
+      } else if (user.role === 'org_admin') {
+        navigate('/org/dashboard', { replace: true });
+      } else if (user.role === 'employee') {
+        navigate('/emp/dashboard', { replace: true });
+      }
+    }
+  }, [user, loading, autoLoginInProgress, navigate]);
+
+  // Show loading spinner while checking auth or auto-login in progress
+  if (loading || autoLoginInProgress) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        background: 'var(--bg)',
+        color: 'var(--text)'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>
+            {autoLoginInProgress ? 'Signing you in...' : 'Loading...'}
+          </div>
+          <div style={{ width: '40px', height: '40px', border: '3px solid var(--border)', borderTopColor: 'var(--teal)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto' }}></div>
+          <style>{`
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id="landing">
@@ -41,7 +84,6 @@ const Gateway = () => {
             <div className="role-enter">Enter Command Center <ArrowRight size={14} style={{ marginLeft: '6px' }} /></div>
           </Link>
 
-
           <Link to="/login/org" className="role-card org">
             <div className="role-icon">◈</div>
             <h3>Org Admin</h3>
@@ -49,14 +91,12 @@ const Gateway = () => {
             <div className="role-enter">Access Dashboard <ArrowRight size={14} style={{ marginLeft: '6px' }} /></div>
           </Link>
 
-
           <Link to="/login/employee" className="role-card employee">
             <div className="role-icon">◉</div>
             <h3>Employee</h3>
             <p>Personal identity verification, attendance history, and mobile biometric credential management</p>
             <div className="role-enter" style={{ color: 'var(--amber)' }}>View Identity Hub <ArrowRight size={14} style={{ marginLeft: '6px' }} /></div>
           </Link>
-
         </div>
 
         <div className="status-bar">

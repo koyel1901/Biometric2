@@ -109,7 +109,6 @@ const Topbar = ({ title, userAbbr, bgColor, iconColor, role }) => {
 
   const handleLogout = () => {
     logout();
-    navigate('/');
   };
 
   // Get profile path based on role

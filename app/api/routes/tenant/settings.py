@@ -36,3 +36,5 @@ async def update_settings(data: SettingsUpdate, tenant: Tenant = Depends(verify_
 @router.get('/profile')
 async def get_tenant_profile(tenant: Tenant = Depends(verify_tenant_api_key), db: AsyncSession = Depends(get_db)):
     return {"id": tenant.id, "name": tenant.name, "api_key": tenant.api_key, "created_at": tenant.created_at}
+
+

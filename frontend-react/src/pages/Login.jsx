@@ -17,8 +17,8 @@ const Login = () => {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
-    apiKey: '', // For tenant login
-    remember: false,
+    apiKey: '',
+    remember: true, // Default to true for auto-login
   });
 
   // Configuration based on role
@@ -32,7 +32,7 @@ const Login = () => {
       dashPath: '/super/dashboard',
       apiRole: 'tenant_admin',
       icon: '⬡',
-      useApiKey: true, // Flag to use API key instead of username/password
+      useApiKey: true,
       placeholder: 'Enter your API Key',
       helpText: 'Use the API key provided by your system administrator'
     },
@@ -66,65 +66,67 @@ const Login = () => {
 
   const config = roleConfigs[role] || roleConfigs.employee;
 
-  // In Login.jsx - inside the component
-// In Login.jsx - update the handleLogin function
-const handleLogin = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setError('');
-  
-  try {
-    let response;
-    let isApiKeyAuth = false;
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
     
-    if (config.useApiKey) {
-      // Tenant login with API key
-      console.log('🔑 Attempting tenant login with API key...');
-      response = await authApi.tenantLogin(formData.apiKey);
-      isApiKeyAuth = true;
-      console.log('✅ Tenant login response:', response);
-    } else {
-      // Regular login with username/password
-      console.log('👤 Attempting regular login...');
-      response = await authApi.login(formData.username, formData.password);
-      console.log('✅ Regular login response:', response);
-    }
+    try {
+      let response;
+      let isApiKeyAuth = false;
+      let usernameToStore = null;
+      let passwordToStore = null;
+      
+      if (config.useApiKey) {
+        // Tenant login with API key
+        console.log('🔑 Attempting tenant login with API key...');
+        response = await authApi.tenantLogin(formData.apiKey);
+        isApiKeyAuth = true;
+        usernameToStore = formData.apiKey;
+        console.log('✅ Tenant login response:', response);
+      } else {
+        // Regular login with username/password
+        console.log('👤 Attempting regular login...');
+        response = await authApi.login(formData.username, formData.password);
+        usernameToStore = formData.username;
+        passwordToStore = formData.password;
+        console.log('✅ Regular login response:', response);
+      }
 
-    // Store the token and user info
-    if (isApiKeyAuth) {
-      const userData = {
-        id: response.tenant?.id,
-        role: config.apiRole,
-        name: response.tenant?.name || 'Tenant Admin',
-      };
-      login(null, userData, true);
-      console.log('🔐 Login called with userData:', userData);
-    } else {
-      const userData = {
-        id: response.user_id || response.id,
-        role: config.apiRole,
-        name: response.name || formData.username,
-        username: formData.username,
-        email: response.email,
-      };
-      login(response.access_token, userData, false);
-      console.log('🔐 Login called with userData:', userData);
-    }
-    
-    // Add a small delay to ensure auth state is updated before navigation
-    console.log('⏳ Waiting for auth state to update...');
-    setTimeout(() => {
+      // Store the token and user info
+      if (isApiKeyAuth) {
+        const userData = {
+          id: response.tenant?.id,
+          role: config.apiRole,
+          name: response.tenant?.name || 'Tenant Admin',
+          email: response.tenant?.email,
+        };
+        // Pass username (API key) for storage
+        await login(null, userData, true, usernameToStore, null);
+        console.log('🔐 Login called with userData:', userData);
+      } else {
+        const userData = {
+          id: response.user_id || response.id,
+          role: config.apiRole,
+          name: response.name || formData.username,
+          username: formData.username,
+          email: response.email,
+        };
+        await login(response.access_token, userData, false, usernameToStore, passwordToStore);
+        console.log('🔐 Login called with userData:', userData);
+      }
+      
+      // Navigate to dashboard
       console.log('🚀 Navigating to:', config.dashPath);
       navigate(config.dashPath);
-    }, 100);
-    
-  } catch (err) {
-    console.error('❌ Login error:', err);
-    setError(err.message || 'Login failed. Please check your credentials.');
-  } finally {
-    setLoading(false);
-  }
-};
+      
+    } catch (err) {
+      console.error('❌ Login error:', err);
+      setError(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -170,7 +172,6 @@ const handleLogin = async (e) => {
 
           <form className="login-form" onSubmit={handleLogin}>
             {config.useApiKey ? (
-              // Tenant Login with API Key only
               <div className="form-group">
                 <label className="form-label">API Key</label>
                 <div className="input-wrap">
@@ -191,7 +192,6 @@ const handleLogin = async (e) => {
                 </p>
               </div>
             ) : (
-              // Regular Login with Username/Password
               <>
                 <div className="form-group">
                   <label className="form-label">Username / Employee ID</label>
@@ -245,7 +245,7 @@ const handleLogin = async (e) => {
                   onChange={handleInputChange}
                   style={{ cursor: 'pointer' }} 
                 />
-                <span>Remember Device</span>
+                <span>Stay signed in</span>
               </label>
               {!config.useApiKey && (
                 <a href="#" className="forgot-link" style={{ color: config.color }}>Forgot Password?</a>
