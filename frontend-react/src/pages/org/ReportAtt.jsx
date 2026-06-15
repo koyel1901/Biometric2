@@ -16,15 +16,15 @@ const ReportAtt = () => {
   const [generated, setGenerated] = useState(false);
   const [departmentName, setDepartmentName] = useState("");
 
-  const isCheckInLate = (checkInTime) => {
+  const isCheckInLate = (checkInTime, officeStartHour = 9, officeStartMinute = 15) => {
     if (!checkInTime) return false;
     const checkIn = new Date(checkInTime);
     const hours = checkIn.getHours();
     const minutes = checkIn.getMinutes();
     
-    // Office starts at 9:00 AM, late after 9:15 AM
-    if (hours > 9) return true;
-    if (hours === 9 && minutes > 15) return true;
+    // Office starts at 9:00 AM, late after 9:15 AM (configurable)
+    if (hours > officeStartHour) return true;
+    if (hours === officeStartHour && minutes > officeStartMinute) return true;
     return false;
   };
 
@@ -32,14 +32,23 @@ const ReportAtt = () => {
     setLoading(true);
     setError("");
     setGenerated(false);
+    setSummary([]);
+    
     try {
-      // 1. Fetch metadata
+      // 1. Fetch employees and department info
       const [employees, deptInfo] = await Promise.all([
         orgApi.getEmployees(),
         orgApi.getDashboard()
       ]);
       
-      setDepartmentName(deptInfo?.department || "Department");
+      console.log("Employees fetched:", employees);
+      console.log("Department info:", deptInfo);
+      
+      if (!employees || !Array.isArray(employees)) {
+        throw new Error("No employees data received");
+      }
+      
+      setDepartmentName(deptInfo?.department || deptInfo?.department_name || "Department");
 
       // 2. Generate date range
       const dates = [];
@@ -49,64 +58,98 @@ const ReportAtt = () => {
         dates.push(new Date(current).toISOString().split("T")[0]);
         current.setDate(current.getDate() + 1);
       }
+      
+      console.log(`Processing ${dates.length} days from ${fromDate} to ${toDate}`);
 
       // 3. Initialize Report Map
       const reportMap = {};
       employees.forEach(emp => { 
         reportMap[emp.id] = { 
+          id: emp.id,
           name: emp.name, 
           present: 0, 
           late: 0, 
           absent: 0, 
           employee_code: emp.employee_code,
-          department: emp.department_name || 'N/A'
+          department: emp.department_name || deptInfo?.department || 'N/A'
         }; 
       });
 
       // 4. Process each date
       for (const d of dates) {
-        const records = await orgApi.getAttendanceByDate(d);
+        console.log(`Processing date: ${d}`);
         
-        // Create lookup maps for both ID and Code to be safe
-        const idToRecord = {};
-        const codeToRecord = {};
-        
-        records.forEach(r => { 
-          if (r.employee_id) idToRecord[r.employee_id] = r;
-          if (r.employee_code) codeToRecord[r.employee_code] = r;
-        });
-        
-        employees.forEach(emp => {
-          // Find record by ID or Code
-          const record = idToRecord[emp.id] || codeToRecord[emp.employee_code];
+        try {
+          const attendanceData = await orgApi.getAttendanceByDate(d);
+          console.log(`Attendance data for ${d}:`, attendanceData);
           
-          if (record && record.status === "present") {
-            if (record.check_in && isCheckInLate(record.check_in)) {
-              reportMap[emp.id].late++;
-            } else {
-              reportMap[emp.id].present++;
-            }
+          // Handle the new API response structure { summary: {...}, employees: [...] }
+          let records = [];
+          if (attendanceData && attendanceData.employees && Array.isArray(attendanceData.employees)) {
+            records = attendanceData.employees;
+          } else if (Array.isArray(attendanceData)) {
+            records = attendanceData;
           } else {
-            // Treat everything else (absent, null, or explicit 'absent' status) as absent
-            reportMap[emp.id].absent++;
+            console.warn(`Unexpected data format for date ${d}:`, attendanceData);
+            records = [];
           }
-        });
+          
+          // Create lookup maps for both ID and Code
+          const idToRecord = {};
+          const codeToRecord = {};
+          
+          records.forEach(r => { 
+            if (r.id) idToRecord[r.id] = r;
+            if (r.employee_code) codeToRecord[r.employee_code] = r;
+          });
+          
+          // Process each employee for this date
+          employees.forEach(emp => {
+            // Find record by ID or Code
+            const record = idToRecord[emp.id] || codeToRecord[emp.employee_code];
+            
+            if (record && record.status === "present") {
+              // Check if employee was late
+              if (record.check_in && isCheckInLate(record.check_in)) {
+                reportMap[emp.id].late++;
+              } else {
+                reportMap[emp.id].present++;
+              }
+            } else {
+              // Treat as absent
+              reportMap[emp.id].absent++;
+            }
+          });
+          
+        } catch (dateErr) {
+          console.error(`Error processing date ${d}:`, dateErr);
+          // Continue with other dates
+        }
       }
 
-      // 5. Final Calculation
+      // 5. Calculate final results
       const result = Object.values(reportMap).map(r => {
         const totalDays = r.present + r.late + r.absent;
         const attended = r.present + r.late;
         const percent = totalDays > 0 ? ((attended / totalDays) * 100).toFixed(1) : "0.0";
-        return { ...r, percent: percent + "%" };
+        return { 
+          ...r, 
+          percent: percent + "%",
+          attendance_rate: parseFloat(percent)
+        };
       });
       
+      // Sort by name
+      result.sort((a, b) => a.name.localeCompare(b.name));
+      
+      console.log("Final report:", result);
       setSummary(result);
       setGenerated(true);
+      
     } catch (err) {
       console.error("Report generation error:", err);
       if (err?.response?.status === 401) logout();
-      setError("Failed to fetch records. Check console for details.");
+      setError(err.message || "Failed to fetch records. Check console for details.");
     } finally {
       setLoading(false);
     }
@@ -138,6 +181,7 @@ const ReportAtt = () => {
         <h1 style="color: #00d4aa; margin: 0; font-size: 28px;">Attendance Summary Report</h1>
         <p style="color: #666; margin: 5px 0;">${departmentName}</p>
         <p style="color: #888; font-size: 12px;">Period: ${fromDate} to ${toDate}</p>
+        <p style="color: #888; font-size: 12px;">Generated: ${new Date().toLocaleString()}</p>
       </div>
       
       <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 40px;">
@@ -164,31 +208,37 @@ const ReportAtt = () => {
           <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
             <th style="padding: 12px; text-align: left; font-size: 12px;">Employee</th>
             <th style="padding: 12px; text-align: left; font-size: 12px;">Code</th>
+            <th style="padding: 12px; text-align: left; font-size: 12px;">Department</th>
             <th style="padding: 12px; text-align: center; font-size: 12px;">Present</th>
             <th style="padding: 12px; text-align: center; font-size: 12px;">Late</th>
             <th style="padding: 12px; text-align: center; font-size: 12px;">Absent</th>
             <th style="padding: 12px; text-align: center; font-size: 12px;">Attendance %</th>
-          </tr>
+           </tr>
         </thead>
         <tbody>
           ${summary.map(s => `
             <tr style="border-bottom: 1px solid #f1f5f9;">
               <td style="padding: 12px; font-size: 13px;">${s.name}</td>
               <td style="padding: 12px; font-size: 13px; color: #64748b;">${s.employee_code || '-'}</td>
-              <td style="padding: 12px; text-align: center; color: #22c55e;">${s.present}</td>
-              <td style="padding: 12px; text-align: center; color: #f59e0b;">${s.late}</td>
-              <td style="padding: 12px; text-align: center; color: #ef4444;">${s.absent}</td>
+              <td style="padding: 12px; font-size: 13px; color: #64748b;">${s.department}</td>
+              <td style="padding: 12px; text-align: center; color: #22c55e; font-weight: 600;">${s.present}</td>
+              <td style="padding: 12px; text-align: center; color: #f59e0b; font-weight: 600;">${s.late}</td>
+              <td style="padding: 12px; text-align: center; color: #ef4444; font-weight: 600;">${s.absent}</td>
               <td style="padding: 12px; text-align: center; font-weight: bold;">${s.percent}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
+      
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 10px; color: #94a3b8;">
+        <p>This is a system-generated report from ScholarFlow Attendance System</p>
+      </div>
     `;
     
     document.body.appendChild(pdfContent);
     const opt = {
       margin: 10,
-      filename: `Report_${fromDate}_to_${toDate}.pdf`,
+      filename: `Attendance_Report_${fromDate}_to_${toDate}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -196,6 +246,10 @@ const ReportAtt = () => {
     
     html2pdf().set(opt).from(pdfContent).save().then(() => {
       document.body.removeChild(pdfContent);
+    }).catch(err => {
+      console.error("PDF generation error:", err);
+      document.body.removeChild(pdfContent);
+      setError("Failed to generate PDF");
     });
   };
 
@@ -208,13 +262,15 @@ const ReportAtt = () => {
         .form-label { font-size: 0.75rem; color: var(--text3); display: flex; align-items: center; gap: 6px; }
         .form-input { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem; color: var(--text); }
         .table-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-        .table-header { padding: 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .table-header { padding: 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
         table { width: 100%; border-collapse: collapse; }
         th { padding: 1rem; background: var(--bg3); font-size: 0.7rem; text-transform: uppercase; color: var(--text3); text-align: left; }
         td { padding: 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; color: var(--text2); }
         .btn-teal { background: var(--teal); color: white; border: none; padding: 0.7rem 1.2rem; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 500; }
         .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); padding: 0.7rem 1.2rem; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
         .btn-teal:disabled, .btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+        .animate-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
 
       <div className="card-box">
@@ -238,7 +294,7 @@ const ReportAtt = () => {
           </div>
         </div>
         
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           <button className="btn-teal" onClick={generateReport} disabled={loading}>
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> 
             {loading ? 'Processing...' : 'Analyze Records'}
@@ -255,7 +311,11 @@ const ReportAtt = () => {
             <FileText size={18} color="var(--teal)" />
             <span style={{ fontWeight: 600 }}>Performance Data</span>
           </div>
-          {generated && <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>Range: {fromDate} to {toDate}</span>}
+          {generated && (
+            <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>
+              {summary.length} employees · {fromDate} to {toDate}
+            </span>
+          )}
         </div>
         
         <div style={{ overflowX: 'auto' }}>
@@ -263,11 +323,12 @@ const ReportAtt = () => {
             <thead>
               <tr>
                 <th>Employee</th>
-                <th>Status Metrics</th>
+                <th>Code</th>
+                <th>Department</th>
                 <th style={{ textAlign: 'center' }}>Present</th>
                 <th style={{ textAlign: 'center' }}>Late</th>
                 <th style={{ textAlign: 'center' }}>Absent</th>
-                <th style={{ textAlign: 'center' }}>Retention %</th>
+                <th style={{ textAlign: 'center' }}>Attendance %</th>
               </tr>
             </thead>
             <tbody>
@@ -275,18 +336,18 @@ const ReportAtt = () => {
                 <tr key={i}>
                   <td>
                     <div style={{ fontWeight: 600, color: 'var(--text)' }}>{s.name}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text3)' }}>{s.employee_code}</div>
                   </td>
-                  <td style={{ fontSize: '0.75rem' }}>{s.department}</td>
-                  <td style={{ textAlign: 'center', color: '#22c55e', fontWeight: 700 }}>{s.present}</td>
-                  <td style={{ textAlign: 'center', color: '#f59e0b', fontWeight: 700 }}>{s.late}</td>
-                  <td style={{ textAlign: 'center', color: '#ef4444', fontWeight: 700 }}>{s.absent}</td>
-                  <td style={{ textAlign: 'center', fontFamily: 'monospace', fontWeight: 700 }}>{s.percent}</td>
+                  <td style={{ fontSize: '0.75rem', color: 'var(--text3)' }}>{s.employee_code || '-'}</td>
+                  <td style={{ fontSize: '0.75rem', color: 'var(--text3)' }}>{s.department}</td>
+                  <td style={{ textAlign: 'center', color: '#22c55e', fontWeight: 600 }}>{s.present}</td>
+                  <td style={{ textAlign: 'center', color: '#f59e0b', fontWeight: 600 }}>{s.late}</td>
+                  <td style={{ textAlign: 'center', color: '#ef4444', fontWeight: 600 }}>{s.absent}</td>
+                  <td style={{ textAlign: 'center', fontFamily: 'monospace', fontWeight: 600 }}>{s.percent}</td>
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text3)' }}>
-                    {loading ? "Aggregating data points..." : "No report generated yet."}
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text3)' }}>
+                    {loading ? "Aggregating data points..." : "No report generated yet. Click 'Analyze Records' to start."}
                   </td>
                 </tr>
               )}
